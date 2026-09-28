@@ -14,3 +14,57 @@ Context: The system needs at least two independent features, where they could wo
 Decision: I chose that the project will be organized by feature, so each feature will have its own folder. One will have the funtionality of the catalog and stock, and the other one will be to manage the orders. Each of them will have its own routes, database models, flask blueprints, and business logic.
 Alternatives considered: Another alternative that we had was to organized the project by layers, where we organize the code depending on what it does, not its business logic. Like all routes togther, all database models together. But this is mixing the two features.
 Consequences: 1-2 sentences, what this costs or enables later. Dividing the project into package by feature establishes clear boundries between each microservice, which makes easy to unit test each module. The tradeoff is that we could have some code duplication between each module.
+
+
+## [3]. <A data-model/schema decision in SQLite>
+Date: 2026-09-28
+Status: Decided
+Context: 1-3 sentences, what forced this decision
+Decision: 1-2 sentences, what you chose
+Alternatives considered: at least one real alternative, and why you rejected it
+Consequences: 1-2 sentences, what this costs or enables later
+
+vendors{
+    int vendor_id autoincrement, 
+    string name,
+    string last_name,
+    string mail unique,
+    string password hash,
+    int active
+}
+
+clients{
+    int client_id autoincrement,
+    string name, 
+    string ubicacion, 
+    string mail, 
+    string cedula juridica, 
+    int vendor_id
+}
+
+products{
+    int id_product autocrement,
+    string code unique,
+    string description,
+    int quantity,
+    int active, 
+    float price
+}
+
+orders{
+    int id_order autoincrement,
+    int vendor_id,
+    int client_id, 
+    string date
+}
+
+orderDetails{
+    int id_orderDetail autoincrement,
+    int id_order, 
+    int id_product, 
+    string code, 
+    string description,
+    int quantity, 
+    float unit_price,
+    float subtotal
+}
