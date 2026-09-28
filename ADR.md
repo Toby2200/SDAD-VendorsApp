@@ -19,10 +19,10 @@ Consequences: 1-2 sentences, what this costs or enables later. Dividing the proj
 ## [3]. <A data-model/schema decision in SQLite>
 Date: 2026-09-28
 Status: Decided
-Context: 1-3 sentences, what forced this decision
-Decision: 1-2 sentences, what you chose
-Alternatives considered: at least one real alternative, and why you rejected it
-Consequences: 1-2 sentences, what this costs or enables later
+Context: We need to define the schema for clearance and persistance inside the users (vendors) table, for catalog table, and sales tables. The system should enforce relational integrity, while having a legal picture of the orders, ensuring that historical records remain immutable even if a product changes.
+Decision: I am going to use a relational database with SQLite to model the vendors and clients orders and catalog visibility. I decided that the table orderDetails is going to have not only the Foreign Key of  'id_product', but due to store historical snapshots we are going to have also the product information such as: 'code', 'description', and 'unit_price' at the moment of the sale.
+Alternatives considered: An alternative that I had was to use only the Foreign Key of the product in the orderDetails, but if the product changes its price or something else, there would not be a legal picture of what was really sold.
+Consequences: Now we have a good approach of relational data, and wrting or retrieveng. The only trade-off is that we are going to have some duplication of data inside the orderDetails.
 
 vendors{
     int vendor_id autoincrement, 
