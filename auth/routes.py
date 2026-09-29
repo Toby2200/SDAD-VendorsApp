@@ -1,0 +1,23 @@
+from flask import Blueprint, render_template, request
+
+from auth.service import authenticate_vendor
+
+
+auth_bp = Blueprint("auth", __name__)
+
+
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "GET":
+        return render_template("login.html")
+
+    mail = request.form["mail"]
+    password = request.form["password"]
+
+    vendor = authenticate_vendor(mail, password)
+
+    if vendor is None:
+        return "Invalid credentials", 401
+
+    return f"Welcome {vendor['name']}!"
