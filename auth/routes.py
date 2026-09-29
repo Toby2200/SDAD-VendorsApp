@@ -1,7 +1,6 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, session, redirect, url_for
 
 from auth.service import authenticate_vendor
-
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -20,4 +19,14 @@ def login():
     if vendor is None:
         return "Invalid credentials", 401
 
+    session["vendor_id"] = vendor["vendor_id"]
+
     return f"Welcome {vendor['name']}!"
+
+
+@auth_bp.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect(url_for("auth.login"))
