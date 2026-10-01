@@ -18,7 +18,8 @@ def test_login_with_correct_credentials_creates_session():
         }
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.location == "/sales/select-clients"
 
     with client.session_transaction() as session:
         assert session["vendor_id"] == 1

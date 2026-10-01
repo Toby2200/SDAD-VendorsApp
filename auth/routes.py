@@ -21,7 +21,7 @@ def login():
 
     session["vendor_id"] = vendor["vendor_id"]
 
-    return f"Welcome {vendor['name']}!"
+    return redirect(url_for("sales.select_clients"))
 
 
 @auth_bp.route("/logout")

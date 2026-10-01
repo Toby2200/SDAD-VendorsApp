@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Seleccionar Cliente</title>
+</head>
+<body>
+
+    <h2>Paso 1: Selecciona un Cliente para la Venta</h2>
+
+    <form action="{{ url_for('sales.select_clients') }}" method="GET">
+
+        <label for="search">Buscar cliente:</label>
+
+        <input
+            type="text"
+            id="search"
+            name="search"
+            value="{{ search }}"
+            placeholder="Escribe el nombre del cliente"
+        >
+
+        <button type="submit">Buscar</button>
+
+    </form>
+
+    <br>
+
+    {% if clients %}
+
+        <form action="{{ url_for('sales.select_clients') }}" method="POST">
+
+            <label for="client_id">Cliente:</label>
+
+            <select name="client_id" id="client_id" required>
+
+                <option value="" disabled selected>
+                    -- Selecciona un cliente --
+                </option>
+
+                {% for client in clients %}
+
+                    <option value="{{ client['client_id'] }}">
+                        {{ client['name'] }} - {{ client['ubicacion'] }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+            <br><br>
+
+            <button type="submit">
+                Continuar al Catálogo
+            </button>
+
+        </form>
+
+    {% else %}
+
+        <p>No se encontraron clientes.</p>
+
+    {% endif %}
+
+    <br>
+
+    <a href="{{ url_for('auth.logout') }}">
+        Cerrar Sesión
+    </a>
+
+</body>
+</html>
