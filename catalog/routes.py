@@ -25,5 +25,6 @@ def products():
         session["cart"] = validated_cart
         return redirect(url_for("sales.cart_summary")) 
 
-    products = get_available_products()
+    search_query = request.args.get("search")
+    products = get_available_products(search_query=search_query)
     return render_template("catalog.html", products=products)

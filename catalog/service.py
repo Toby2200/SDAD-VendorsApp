@@ -1,21 +1,32 @@
 from database.database import get_connection
 import sqlite3
 
-def get_available_products():
+def get_available_products(search_query=None):
     connection = get_connection()
-
-    products = connection.execute(
+    connection.row_factory = sqlite3.Row
+    if search_query:
+        # Preparamos el patrón para coincidencia parcial
+        search_pattern = f"%{search_query.strip()}%"
+        query = """
+            SELECT *
+            FROM products
+            WHERE active = 1
+            AND quantity > 0
+            AND (code LIKE ? OR description LIKE ?)
+            ORDER BY description ASC
         """
-        SELECT *
-        FROM products
-        WHERE active = 1
-        AND quantity > 0
-        ORDER BY description ASC
+        products = connection.execute(query, (search_pattern, search_pattern)).fetchall()
+    else: 
+        query = """
+            SELECT *
+            FROM products
+            WHERE active = 1
+            AND quantity > 0
+            ORDER BY description ASC
         """
-    ).fetchall()
+        products = connection.execute(query).fetchall()
 
     connection.close()
-
     return products
 
 def validate(selected_items):

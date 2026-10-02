@@ -47,6 +47,21 @@
     {% endif %}
 
     {% if products %}
+        <form method="GET" action="{{ url_for('catalog.products') }}" style="margin-bottom: 20px;">
+            <input 
+                type="text" 
+                name="search" 
+                placeholder="Buscar por código o descripción..." 
+                value="{{ search_query if search_query else '' }}"
+                style="padding: 8px; width: 300px;"
+            >
+            <button type="submit" style="padding: 8px 15px;">Buscar</button>
+            
+            {% if search_query %}
+                <a href="{{ url_for('catalog.products') }}" style="margin-left: 10px;">Limpiar búsqueda</a>
+            {% endif %}
+        </form>
+
         <form method="POST" action="{{ url_for('catalog.products') }}">
             <table>
                 <thead>
