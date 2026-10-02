@@ -19,4 +19,4 @@ def select_clients():
 
     session["selected_client_id"] = selected_client_id
 
-    return redirect(url_for("catalog.list_products"))
+    return redirect(url_for("catalog.products"))
