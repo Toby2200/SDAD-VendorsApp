@@ -2,105 +2,102 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Catálogo de Productos</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        input[type="number"] {
-            width: 70px;
-        }
-        .error-message {
-            color: red;
-            font-weight: bold;
-        }
-        .btn-submit {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .btn-submit:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <title>Catálogo</title>
 </head>
 <body>
 
     <h2>Catálogo de Productos</h2>
 
-    {% if error %}
-        <p class="error-message">{{ error }}</p>
-    {% endif %}
+    <form id="catalogForm" method="POST" action="{{ url_for('catalog.products') }}">
+        <table>
+            <thead>
+                <tr>
+                    <th>Elegir</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Precio</th>
+                    <th>Disponible</th>
+                    <th>Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <input 
+                            type="checkbox" 
+                            name="selected_products" 
+                            value="{{ product['id_product'] }}"
+                            data-price="{{ product['price'] }}"
+                            onchange="updateFloatingBar()"
+                        >
+                    </td>
+                    <td><strong>{{ product['code'] }}</strong></td>
+                    <td>{{ product['description'] }}</td>
+                    <td>${{ "%.2f"|format(product['price']) }}</td>
+                    <td>{{ product['quantity'] }}</td>
+                    <td>
+                        <input 
+                            type="number" 
+                            name="quantity_{{ product['id_product'] }}" 
+                            id="qty_{{ product['id_product'] }}"
+                            min="1" 
+                            max="{{ product['quantity'] }}" 
+                            value="1"
+                            data-max-stock="{{ product['quantity'] }}"
+                            oninput="validateAndRecalculate(this)"
+                        >
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    {% if products %}
-        <form method="GET" action="{{ url_for('catalog.products') }}" style="margin-bottom: 20px;">
-            <input 
-                type="text" 
-                name="search" 
-                placeholder="Buscar por código o descripción..." 
-                value="{{ search_query if search_query else '' }}"
-                style="padding: 8px; width: 300px;"
-            >
-            <button type="submit" style="padding: 8px 15px;">Buscar</button>
-            
-            {% if search_query %}
-                <a href="{{ url_for('catalog.products') }}" style="margin-left: 10px;">Limpiar búsqueda</a>
-            {% endif %}
-        </form>
+        <!-- Barra Flotante Inferior -->
+        <div class="sticky-cart-bar">
+            <div>
+                <span id="itemCount" style="font-size: 1.1em; font-weight: bold;">0 productos seleccionados</span>
+            </div>
+            <div>
+                <span style="margin-right: 15px; font-size: 1.2em;">Total: <strong id="cartTotal">$0.00</strong></span>
+                <button type="submit" id="viewCartBtn" class="cart-btn" disabled>Ver Carrito</button>
+            </div>
+        </div>
+    </form>
 
-        <form method="POST" action="{{ url_for('catalog.products') }}">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Seleccionar</th>
-                        <th>Código</th>
-                        <th>Descripción</th>
-                        <th>Disponible</th>
-                        <th>Cantidad Solicitada</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in products %}
-                    <tr>
-                        <td>
-                            <input type="checkbox" name="selected_products" value="{{ product['id_product'] }}">
-                        </td>
-                        <td><strong>{{ product['code'] }}</strong></td>
-                        <td>{{ product['description'] }}</td>
-                        <td>{{ product['quantity'] }}</td>
-                        <td>
-                            <input 
-                                type="number" 
-                                name="quantity_{{ product['id_product'] }}" 
-                                min="1" 
-                                max="{{ product['quantity'] }}" 
-                                value="1"
-                            >
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <script>
+        function validateAndRecalculate(input) {
+            const maxStock = parseInt(input.dataset.maxStock, 10);
+            let val = parseInt(input.value, 10);
 
-            <button type="submit" class="btn-submit">Añadir Selección y Continuar a Ventas</button>
-        </form>
-    {% else %}
-        <p>No hay productos disponibles actualmente.</p>
-    {% endif %}
+            if (isNaN(val) || val < 1) {
+                input.value = 1;
+            } else if (val > maxStock) {
+                input.value = maxStock;
+            }
 
+            updateFloatingBar();
+        }
+
+        function updateFloatingBar() {
+            const checkboxes = document.querySelectorAll('input[name="selected_products"]:checked');
+            let total = 0;
+            let count = 0;
+
+            checkboxes.forEach(cb => {
+                const prodId = cb.value;
+                const price = parseFloat(cb.getAttribute('data-price')) || 0;
+                const qtyInput = document.getElementById('qty_' + prodId);
+                const qty = parseInt(qtyInput.value, 10) || 1;
+
+                total += price * qty;
+                count += qty;
+            });
+
+            document.getElementById('itemCount').textContent = count + (count === 1 ? " producto seleccionado" : " productos seleccionados");
+            document.getElementById('cartTotal').textContent = "$" + total.toFixed(2);
+            document.getElementById('viewCartBtn').disabled = (count === 0);
+        }
+    </script>
 </body>
 </html>

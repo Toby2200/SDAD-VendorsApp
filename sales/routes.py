@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for
 from auth.decorators import login_required
-from sales.service import get_clients_by_vendor
+from sales.service import get_cart_details, get_clients_by_vendor
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -20,3 +20,19 @@ def select_clients():
     session["selected_client_id"] = selected_client_id
 
     return redirect(url_for("catalog.products"))
+
+@sales_bp.route("/cart-summary", methods=["GET"])
+@login_required
+def cart_summary():
+    session_cart = session.get("cart", [])
+
+    if not session_cart:
+        return redirect(url_for("catalog.products"))
+
+    cart_items, grand_total = get_cart_details(session_cart)
+
+    return render_template(
+        "cart_summary.html",
+        items=cart_items,
+        grand_total=grand_total
+    )
