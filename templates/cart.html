@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resumen del Carrito</title>
+</head>
+<body>
+
+    <h2>Tu Carrito de Compras</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Precio Unitario</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item['code'] }}</td>
+                <td>{{ item['description'] }}</td>
+                <td>${{ "%.2f"|format(item['unit_price']) }}</td>
+                <td>{{ item['quantity'] }}</td>
+                <td>${{ "%.2f"|format(item['subtotal']) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="4" style="text-align: right;">Total General:</td>
+                <td>${{ "%.2f"|format(grand_total) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center;">
+        <a href="{{ url_for('catalog.products') }}" class="btn-back">← Volver al Catálogo y Modificar</a>
+
+        <form method="POST" action="{{ url_for('sales.checkout') }}">
+            <button type="submit" class="btn-confirm">Confirmar y Realizar Pedido (${{"%.2f"|format(grand_total)}})</button>
+        </form>
+    </div>
+
+</body>
+</html>
