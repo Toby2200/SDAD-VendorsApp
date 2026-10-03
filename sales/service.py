@@ -30,6 +30,7 @@ def get_clients_by_vendor(vendor_id, search=""):
 
     return clients
 
+
 def get_cart_details(cart):
     if not cart:
         return [], 0.0
@@ -76,3 +77,42 @@ def get_cart_details(cart):
             })
 
     return detailed_items, grand_total
+
+
+def process_cart_for_order(cart, vendor_id, client_id):
+    
+    if not cart:
+        return False, "El carrito está vacío."
+
+    details, grand_total = get_cart_details(cart)
+
+    if not details:
+        return False, "Ninguno de los productos seleccionados está disponible."
+
+    connection = get_connection()
+
+    try:
+        connection.execute(
+            "INSERT INTO orders (vendor_id, client_id, date) VALUES (?, ?, datetime('now'))",
+            (vendor_id, client_id)
+        )
+
+        order_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        for item in details:
+            connection.execute(
+                "INSERT INTO orderDetails (id_order, id_product, code, description, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (order_id, item["product_id"], item["code"], item["description"], item["quantity"], item["unit_price"], item["subtotal"])
+            )
+
+        connection.commit()
+        return True, order_id
+
+    except ValueError as ve:
+        connection.rollback()
+        connection.close()
+        return False, str(ve)
+    except Exception as e:
+        connection.rollback()
+        connection.close()
+        return False, f"Error al procesar la orden: {str(e)}"

@@ -24,7 +24,9 @@ def products():
         cart = []
         for prod_id in selected_ids:
             qty = request.form.get(f"quantity_{prod_id}", type=int, default=1)
-            cart.append({"product_id": int(prod_id), "quantity": qty})
+            cart.append({"product_id": int(prod_id), "quantity": qty})        
+        
+        validated_cart, warnings = validate(cart)
 
         if not validated_cart:
             return render_template(
@@ -32,10 +34,7 @@ def products():
                 products=get_available_products(search_query=search_query),
                 search_query=search_query,
                 error="Ninguno de los productos seleccionados está disponible en este momento."
-                )
-        
-        
-        validated_cart, warnings = validate(cart)
+            )
 
         if warnings:
             print("--> WARNINGS:", warnings)
