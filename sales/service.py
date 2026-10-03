@@ -92,6 +92,15 @@ def process_cart_for_order(cart, vendor_id, client_id):
     connection = get_connection()
 
     try:
+
+        client = connection.execute(
+            "SELECT * FROM clients WHERE client_id = ? AND vendor_id = ?",
+            (client_id, vendor_id)
+        ).fetchone()
+        
+        if client is None:
+            return False, "El cliente seleccionado no es válido para este vendedor."
+
         connection.execute(
             "INSERT INTO orders (vendor_id, client_id, date) VALUES (?, ?, datetime('now'))",
             (vendor_id, client_id)
@@ -100,10 +109,35 @@ def process_cart_for_order(cart, vendor_id, client_id):
         order_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         for item in details:
+            
+            product_id = item["product_id"]
+            requested_qty = item["quantity"]
+
+            product = connection.execute(
+                "SELECT quantity FROM products WHERE id_product = ? AND active = 1",
+                (product_id,)
+            ).fetchone()
+
+            if product is None:
+                raise ValueError(f"El producto con ID {product_id} ya no está disponible.")
+
+            if requested_qty > product["quantity"]:
+                raise ValueError(
+                    f"La cantidad solicitada para el producto con ID {product_id} supera el stock disponible."
+                )
+
             connection.execute(
                 "INSERT INTO orderDetails (id_order, id_product, code, description, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (order_id, item["product_id"], item["code"], item["description"], item["quantity"], item["unit_price"], item["subtotal"])
             )
+
+            connection.execute(
+                "UPDATE products SET quantity = quantity - ? WHERE id_product = ? AND active = 1 AND quantity >= ?",
+                (item["quantity"], item["product_id"], item["quantity"])
+            )
+
+            if connection.total_changes == 0:
+                raise ValueError(f"No se pudo actualizar el stock para el producto con ID {product_id}.")
 
         connection.commit()
         return True, order_id
@@ -116,3 +150,5 @@ def process_cart_for_order(cart, vendor_id, client_id):
         connection.rollback()
         connection.close()
         return False, f"Error al procesar la orden: {str(e)}"
+    finally:
+        connection.close()
