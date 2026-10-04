@@ -1,15 +1,3 @@
-"""
-Tests para catalog/routes.py -> /products
-
-Datos del seed que usamos (siempre iguales gracias a conftest.py):
-  id 1 -> "992831"     Producto A  stock 10  activo
-  id 2 -> "1233123"    Producto A  stock 5   activo
-  id 3 -> "23234432 C" Producto B  stock 0   activo   (sin stock)
-  id 4 -> "4564645 D"  Producto C  stock 20  INACTIVO
-  id 5 -> "5466456 E"  Producto D  stock 15  activo
-"""
-
-
 # ------------------------------------------------------------------
 # GET /products
 # ------------------------------------------------------------------

@@ -12,8 +12,8 @@ def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
-    init_database()   # CREATE TABLE IF NOT EXISTS, no borra nada
-    seed_database()   # solo inserta si las tablas están vacías
+    init_database()
+    seed_database()
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(catalog_bp)
@@ -26,7 +26,6 @@ def create_app():
     return app
 
 
-# A nivel de módulo para que los tests puedan hacer "from app import app"
 app = create_app()
 
 if __name__ == "__main__":

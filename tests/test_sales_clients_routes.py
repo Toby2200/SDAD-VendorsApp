@@ -1,12 +1,3 @@
-"""
-Tests para sales/routes.py -> /sales/select-clients
-
-Datos del seed:
-  Andres (vendor 1): Mercadona (client 1), Carrefour (client 2)
-  Maria  (vendor 2): Walmart   (client 3)
-"""
-
-
 def test_select_clients_page_loads_when_logged_in(logged_in_client):
     response = logged_in_client.get("/sales/select-clients")
 
@@ -24,7 +15,7 @@ def test_select_clients_shows_only_clients_of_the_vendor(logged_in_client):
 
 def test_select_clients_other_vendor_sees_their_own_clients(client):
     with client.session_transaction() as session:
-        session["vendor_id"] = 2  # Maria
+        session["vendor_id"] = 2 
 
     html = client.get("/sales/select-clients").get_data(as_text=True)
 
@@ -46,9 +37,6 @@ def test_select_clients_search_cannot_find_other_vendors_clients(logged_in_clien
         "/sales/select-clients?search=Walmart"
     ).get_data(as_text=True)
 
-    # Ojo: "Walmart" sí aparece en el HTML porque la barra de búsqueda
-    # muestra lo que escribiste (value="Walmart"). Por eso revisamos la
-    # opción del <select>, que tiene el formato "Nombre - Ubicación".
     assert "Walmart - Avenida Central" not in html
 
 

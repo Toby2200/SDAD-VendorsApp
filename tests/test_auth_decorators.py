@@ -1,11 +1,3 @@
-"""
-Tests para auth/decorators.py -> login_required
-
-Se prueba de dos formas:
-  1. Aislado: una mini app de Flask con una ruta de prueba protegida.
-     Así probamos SOLO el decorador, sin depender de catalog ni sales.
-  2. En la app real: que TODAS las rutas protegidas estén realmente protegidas.
-"""
 import pytest
 from flask import Flask
 
