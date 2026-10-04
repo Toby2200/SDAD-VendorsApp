@@ -14,3 +14,122 @@
 |10/04/2026|Claude|Ocupo que me ayudes con el folder de tests/ por que me faltan tests para: clients/routes.py, sales/routes.py, auth/decorator.py. Y ademas de que me faltan esos testst ocupo que me ayudes ya que ahora mismo esos tests pueden salir Failed depnediendo de si la aplicacion se uso antes o no. Porque verifican data que cambia, y asumo yo que no deberia de ser asi. Deberia de usar data que siempre se vea igual y asi el test siempre o fails o pass|Modified|It gave me exactly the code of how to make it, but I also asked for explanation of everysingle line. SO if I found another way to do it in a more simpler way I was going to do it. Also for the tests I was trying to do it on my own way refering that I wanted to weite the paramter and functons in a way that it was easy to explain or visually understand. While claude was not as efficent to make the code understandable. It is true that probably its code was better and more efficent. But in this case I prioritize understanding, rather than just working as if it was a blackbox.|The first file we needed to create was the conftest.py which is what we are using to generate a temporary database for the tests, so that eah test do not depend of the state of the databse, and we did there a fixture where we generated the temporary db, and for each test like a copy. Then for the auth/decorators we did a test where we created a mini app where there was only the login required and two option you already login or not. So we tryied to login with a session (cookies of login) and without session. If we tryied to entered /protected (we created in the mini app) without session we should get to /login and if everything went well we could go to /protyected. We did it creating a simulated client. With requests and everything, but withou and actual browser. Then we worked on catalog/routes tests and since we are using the information from conftest we already know exactly what we should retrive. So the first step is to check if we are loged in since we have the login_required decorator for that route, we are using the paramter taken from conftest where we simulated to login. Then we try getting the data withou searching, just what data is being shown in the html, and which is not. Then with the search option, where we simulate the url/api we are using. Then we test the te other route, which is to select products. So we try to send to /products some specific values, and the only assertion we need is that the status is correct, and then we check the cart that are cookies if the productws_ids and quantities are stored correctlty. This same process, but for many cases. Then the cart/route we have three functiosn were we store data in the session cookie, then we have one to get the stock, adn another one to coun the orders, this will be later used for making the tests. Then what we do is use the set information in the session to add product to the cart. And then we check if the information was displayed good in the cart page. Which is the subtotal and name of the product, and what we input is only the product_id. And later is easier, since we add information to the cookies session. And try to checkout that information. Since /checkout has many verifications we chekc that the verifiaction are working properly. And the last test claude gave me was the clients/route where we check that for a specific vendor the html page is showing the correct data. We check many cases just to see that is actually working, and showing when needed, and not showing when not needed.|
 |10/04/2026|Claude|Ahora me puedes ayudar a que el html tenga logout en cualquier momento y tambien retroceder a la pagina anterior. Y tambien quiero que me ayudes a hacer un css basico para las paginas, de manera que se vea bien todo. Cuando digo logout ocupo que uses el route obviamente. Ademas no cambies nada de lo que ya tengo funcionando sigue el open-close principle.|Accpeted|---|What I had working before I did not changed it, what Claude told me to do was to create a base.html where I had all the things that where in all files, so that we dont repeat our selves. And then it craeted a css file with all the styles information, and helped me add this into our html files, but most of them already had an id, class, name so in styles it tryies to use what we already had to change the lesser as possible.|
 |10/04/2026|Claude|A catlog le agregue la opcion de bsucar, pero nuna la puse en el catalog.html ayudame.|Accpeted|---|Just added a form in the catalog.html that has GET method|
+|10/04/2026|Claude|Ayudame pasando todo esto a un formato correcto para README.md no cambies ni una palabra de lo que escribi ni agregues ni una sola palabra solo quiero estilo. [Section 1]|Accpeted|---|It is just so that README.md is not simple text, so that looks like an actual README. And also since I wask it to not change anything it gave me some recommendations, so I changed them. But are just small error or mistakes.|
+
+Section 1:
+What is the VendorsApp?
+It is an application for distribution companies so that they can connect their stock, vendors, clients, and generate orders with only one click, and being sure that the order comes with available product. In Costa Rica this process is really manual, and there are usually many problems with the orders, due to the fact that most of the vendors ask for unavailable products.
+
+Feature domains:
+auth: We have a login, which the users are already defined, because this should not be a public page. 
+catalog: The posibility to search by code and description and find the product you want, and shows the stock of active products with available stock.
+sales: Vendor can see teh details of the order before generating it, and generates an order and relates the product, order, client, and vendor all in one.
+
+To use the project you should have a github account to clone the repository and python installed in your computer.
+
+Steps to use the application:
+
+1. Clone the repository using:
+git clone https://github.com/Toby2200/SDAD-VendorsApp.git
+cd SDAD-VendorsAPP
+
+2. Create a virtual environment which ever you want to use. 
+Instructions to do it with venv:
+Mac:
+python3 -m venv venv
+
+source venv/bin/activate
+
+Windows:
+python -m venv venv
+
+(Command Prompt)
+venv\Scripts\activate
+(Powershell)
+venv\Scripts\Activate.ps1
+
+3. Install Requirements
+To run the app you should install flask, werkzeug, pytest, and pytest-cov. But they are already in the requirements.txt. So just run the command:
+pip install -r requirements.txt
+
+4. Run the application
+To run the application you just write the command:
+python app.py
+
+5. Browse the url:
+http://127.0.0.1:5000 or http://127.0.0.1:PORT
+
+When run the app automaticlaly creates the databse if it does not exist with the tables, and then if the tables are empty it generates the mock data.
+
+The environment variables are PORT=5000, DATA_DIR=./data, SECRET_KEY=dev-secret-key, FLASK_DEBUG=0. WE have default variables. 
+
+To assign any other values to this variables:
+Windows (Powershell):
+$env:PORT="8080"; $env:DATA_DIR="C:\vendors-data"; python app.py
+
+Mac (BASH):
+PORT=8080 DATA_DIR=/tmp/vendors-data python app.py
+
+The database will be located in the main root inside the data folder. To find it also: SDAD-VendorsApp/data/app.db
+To reset the data from the database just delete the data folder or the one in DATA_DIR.
+
+The users or vendors are:
+Vendor 1:
+email: andres@test.com
+password: 123456
+
+Vendor 2:
+email: maria@test.com
+password: abcdef
+
+Vendor 3 incative should not be able to enter:
+email: carlos@test.com
+password: password123
+
+Tests and coverage
+Each test runs against its own temporary copy of a seeded SQLite database
+(`tests/conftest.py), so results are the same.
+
+Run the tests:
+python -m pytest -q
+
+Run the tests with coverage:
+python -m pytest --cov=auth --cov=catalog --cov=sales --cov=database --cov-report=term-missing
+
+
+Result:
+============================================================ tests coverage ============================================================
+______________________________________________________________________________ coverage: platform win32, python 3.12.6-final-0 ______________________________________________________________________________
+
+Name                   Stmts   Miss  Cover   Missing
+----------------------------------------------------
+auth\__init__.py           0      0   100%
+auth\decorators.py         9      0   100%
+auth\routes.py            18      0   100%
+auth\service.py           16      0   100%
+catalog\routes.py         25      0   100%
+catalog\service.py        35      0   100%
+database\database.py      24      0   100%
+database\seed.py          50      1    98%   113
+sales\routes.py           41      2    95%   51, 73
+sales\service.py          69      5    93%   143, 152-155
+----------------------------------------------------
+TOTAL                    287      8    97%
+============================================================ 69 passed in 1.37s ============================================================
+
+
+Project structure:
+
+SDAD-VendorsApp/
+├── app.py              # Entry point: creates the app, DB and blueprints
+├── README.md           # HERE
+├── requirements.txt
+├── auth/               # Domain: login, logout, login_required
+├── catalog/            # Domain: products, search, stock validation
+├── sales/              # Domain: clients, cart, checkout / orders
+├── database/           # SQLite connection, schema and seed data
+├── templates/          # Jinja2 HTML templates (base.html + pages)
+├── static/css/         # Styles
+├── tests/              # pytest tests + conftest.py
+├── ADR.md              # Architecture Decision Records
+└── AI_USAGE.md         # AI usage log
