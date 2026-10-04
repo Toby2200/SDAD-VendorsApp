@@ -91,8 +91,23 @@ def seed_products():
     insert_products(RAW_PRODUCTS)
     print("Productos de prueba insertados con éxito.")
 
+def is_table_empty(table_name):
+    connection = get_connection()
+    try:
+        row = connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+        return row[0] == 0
+    finally:
+        connection.close()
+
+
+def seed_database():
+    if is_table_empty("vendors"):
+        seed_vendors()
+    if is_table_empty("clients"):
+        seed_clients()
+    if is_table_empty("products"):
+        seed_products()
+
 
 if __name__ == "__main__":
-    seed_vendors()
-    seed_clients()
-    seed_products()
+    seed_database()
