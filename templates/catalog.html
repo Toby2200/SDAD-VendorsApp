@@ -1,14 +1,49 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Catálogo</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{# "Regresar" lleva al paso anterior: elegir cliente #}
+{% set back_url = url_for('sales.select_clients') %}
+
+{% block title %}Catálogo{% endblock %}
+{% block body_class %}page-catalog{% endblock %}
+
+{% block content %}
+
+<span class="step">Paso 2 de 3</span>
 
     <h2>Catálogo de Productos</h2>
 
+    <form action="{{ url_for('catalog.products') }}" method="GET" class="card search-card">
+    <label for="search">Buscar producto:</label>
+
+    <div class="search-row">
+        <input
+            type="text"
+            id="search"
+            name="search"
+            value="{{ search_query }}"
+            placeholder="Busca por código o descripción"
+        >
+
+        <button type="submit">Buscar</button>
+
+        {% if search_query %}
+            <a href="{{ url_for('catalog.products') }}" class="btn btn-outline">Limpiar</a>
+        {% endif %}
+    </div>
+</form>
+
+{% if not products %}
+    <p class="muted">
+        {% if search_query %}
+            No se encontraron productos para "{{ search_query }}".
+        {% else %}
+            No hay productos disponibles en este momento.
+        {% endif %}
+    </p>
+{% endif %}
+
     <form id="catalogForm" method="POST" action="{{ url_for('catalog.products') }}">
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr>
@@ -46,12 +81,14 @@
                             value="1"
                             data-max-stock="{{ product['quantity'] }}"
                             oninput="validateAndRecalculate(this)"
+                            onblur="fixEmptyQuantity(this)"
                         >
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
 
         <!-- Barra Flotante Inferior -->
         <div class="sticky-cart-bar">
@@ -65,8 +102,15 @@
         </div>
     </form>
 
+    {% endblock %}
+    {% block scripts %}
+
     <script>
         function validateAndRecalculate(input) {
+            if (input.value === "") {
+                updateFloatingBar();
+                return; 
+            }
             const maxStock = parseInt(input.dataset.maxStock, 10);
             let val = parseInt(input.value, 10);
 
@@ -77,6 +121,13 @@
             }
 
             updateFloatingBar();
+        }
+
+        function fixEmptyQuantity(input) {
+            if (input.value === "") {
+                input.value = 1;
+                updateFloatingBar();
+            }
         }
 
         function updateFloatingBar() {
@@ -99,5 +150,5 @@
             document.getElementById('viewCartBtn').disabled = (count === 0);
         }
     </script>
-</body>
-</html>
+
+{% endblock %}

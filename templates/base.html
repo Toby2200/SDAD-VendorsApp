@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vendors App{% endblock %} · Vendors App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+    <header class="navbar">
+        <div class="navbar-inner">
+
+            <!-- Izquierda: Regresar (si la página lo define) + nombre de la app -->
+            <div class="navbar-left">
+                {% if back_url %}
+                    <a href="{{ back_url }}" class="btn btn-ghost btn-sm">← Regresar</a>
+                {% endif %}
+                <span class="brand">Vendors App</span>
+            </div>
+
+            <!-- Derecha: Cerrar sesión. login.html reemplaza este bloque por uno vacío -->
+            {% block nav_actions %}
+                {% if session.get("vendor_id") %}
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">Cerrar sesión</a>
+                {% endif %}
+            {% endblock %}
+
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Si una ruta manda la variable "error", se muestra aquí -->
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

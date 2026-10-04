@@ -1,11 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Vendor Login</title>
-</head>
-<body>
+{% extends "base.html" %}
 
+{% block title %}Iniciar sesión{% endblock %}
+{# En el login nunca se muestra "Cerrar sesión" #}
+{% block nav_actions %}{% endblock %}
+
+{% block content %}
+
+<div class="card card-narrow">
     <h1>Vendor Login</h1>
 
     <form method="POST" action="/login">
@@ -24,5 +25,6 @@
 
     </form>
 
-</body>
-</html>
+</div>
+
+{% endblock %}

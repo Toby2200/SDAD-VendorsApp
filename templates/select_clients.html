@@ -1,12 +1,14 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Seleccionar Cliente</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Seleccionar Cliente{% endblock %}
+
+{% block content %}
+
+<span class="step">Paso 1 de 3</span>
 
     <h2>Paso 1: Selecciona un Cliente para la Venta</h2>
+
+    <div class="card card-narrow">
 
     <form action="{{ url_for('sales.select_clients') }}" method="GET">
 
@@ -62,11 +64,6 @@
 
     {% endif %}
 
-    <br>
+    </div>
 
-    <a href="{{ url_for('auth.logout') }}">
-        Cerrar Sesión
-    </a>
-
-</body>
-</html>
+{% endblock %}
