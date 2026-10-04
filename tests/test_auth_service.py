@@ -18,7 +18,7 @@ def test_authenticate_vendor_with_nonexistent_email():
     assert vendor is None
 
 def test_authenticate_vendor_with_inactive_vendor():
-    vendor = authenticate_vendor("inactive@test.com", "123456")
+    vendor = authenticate_vendor("carlos@test.com", "123456")
 
     assert vendor is None
 

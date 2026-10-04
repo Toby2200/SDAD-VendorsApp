@@ -4,7 +4,11 @@ from catalog.service import get_available_products, validate
 # PRUEBAS PARA: get_available_products()
 # ==========================================
 
-#def test_get_available_products_returns_only_active_and_in_stock():
+def test_get_available_products_returns_only_active_and_in_stock():
+    products = get_available_products()
+    ids = sorted(product["id_product"] for product in products)
+
+    assert ids == [1, 2, 5, 7, 8, 10]
 
 def test_get_available_products_search_by_code():
     products = get_available_products(search_query="9928")

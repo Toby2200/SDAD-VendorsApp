@@ -121,6 +121,9 @@ def process_cart_for_order(cart, vendor_id, client_id):
             if product is None:
                 raise ValueError(f"El producto con ID {product_id} ya no está disponible.")
 
+            if requested_qty <= 0:
+                raise ValueError(f"La cantidad solicitada para el producto con ID {product_id} debe ser mayor que cero.")
+
             if requested_qty > product["quantity"]:
                 raise ValueError(
                     f"La cantidad solicitada para el producto con ID {product_id} supera el stock disponible."
