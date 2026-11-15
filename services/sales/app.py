@@ -4,19 +4,17 @@ from flask import Flask, redirect, url_for
 from database.database import init_database
 from database.seed import seed_database
 from auth.routes import auth_bp
-from catalog.routes import catalog_bp
 from sales.routes import sales_bp
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="../../ui/templates", static_folder="../../ui/static")
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
     init_database()
     seed_database()
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(catalog_bp)
     app.register_blueprint(sales_bp)
 
     @app.route("/")

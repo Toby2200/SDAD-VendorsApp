@@ -48,7 +48,6 @@ def template_database(tmp_path_factory):
 
     return template_dir / DATABASE_FILENAME
 
-
 @pytest.fixture(autouse=True)
 def fresh_database(template_database, tmp_path, monkeypatch):
     """
@@ -65,18 +64,15 @@ def fresh_database(template_database, tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     yield
 
-
 @pytest.fixture
 def app():
     flask_app.config["TESTING"] = True
     return flask_app
 
-
 @pytest.fixture
 def client(app):
     """Navegador simulado, sin sesión (usuario NO logueado)."""
     return app.test_client()
-
 
 @pytest.fixture
 def logged_in_client(client):
