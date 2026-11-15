@@ -1,12 +1,12 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for
 
 from catalog.service import get_available_products, validate
-from auth.decorators import login_required
+#from auth.decorators import login_required
 
 catalog_bp = Blueprint("catalog", __name__)
 
 @catalog_bp.route("/products", methods=["GET", "POST"])
-@login_required
+#@login_required
 def products():
     search_query = request.args.get("search", "").strip()
 
