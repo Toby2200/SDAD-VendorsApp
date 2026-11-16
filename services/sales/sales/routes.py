@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for
 from auth.decorators import login_required
-from sales.service import get_cart_details, get_clients_by_vendor, process_cart_for_order
+from sales.service import  get_clients_by_vendor, process_cart_for_order
+from sales.catalog_client import CatalogUnavailable
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -21,56 +22,29 @@ def select_clients():
 
     return redirect(url_for("catalog.products"))
 
-@sales_bp.route("/cart_summary", methods=["GET"])
+@sales_bp.route("/orders", methods=["POST"])
 @login_required
-def cart_summary():
-    session_cart = session.get("cart", [])
+def create_order():
+    vendor_id = session["vendor_id"]
+    data = request.get_json(silent=True) or {}
+    client_id = data.get("client_id")
+    cart_items = data.get("cart_items")
 
-    if not session_cart:
-        return redirect(url_for("catalog.products"))
+    # 1. Revisar que el body tenga el formato correcto
+    if not isinstance(client_id, int) or not isinstance(cart_items, list) or not cart_items:
+        return jsonify({"error": "Se requiere client_id (entero) y cart_items (lista no vacía)."}), 400
 
-    cart_items, grand_total = get_cart_details(session_cart)
+    # 2. Intentar crear el pedido; si catalog está caído, responder 503
+    try:
+        success, result = process_cart_for_order(cart_items, vendor_id, client_id)
+    except CatalogUnavailable:
+        return jsonify({
+            "error": "El catálogo no está disponible en este momento. Inténtalo de nuevo en unos minutos."
+        }), 503
 
-    return render_template(
-        "cart.html",
-        items=cart_items,
-        grand_total=grand_total
-    )
+    # 3. Si no se pudo (sin stock, cliente ajeno), responder 409
+    if not success:
+        return jsonify({"error": result}), 409
 
-@sales_bp.route("/cart_summary/checkout", methods=["POST"])
-@login_required
-def checkout():
-    session_cart = session.get("cart", [])
-
-    if not session_cart:
-        return jsonify({"error": "El carrito está vacío."}), 400
-
-    cart_items, grand_total = get_cart_details(session_cart)
-
-    if not cart_items:
-        return jsonify({"error": "Ninguno de los productos seleccionados está disponible."}), 400
-
-    success, result = process_cart_for_order(
-        session_cart,
-        vendor_id=session.get("vendor_id"),
-        client_id=session.get("selected_client_id")
-    )
-
-    if success:
-        session.pop("cart", None)
-        return render_template("checkout_success.html", sale_id=result)
-    else:
-        return render_template(
-            "cart.html",
-            error=result,
-            items=get_cart_details(session_cart)[0],
-            grand_total=get_cart_details(session_cart)[1]
-        )
-
-@sales_bp.route("/checkout_success", methods=["GET"])
-@login_required
-def checkout_success(order_id):
-    return render_template(
-        "checkout_success.html", 
-        order_id=order_id
-    )
+    # 4. Todo bien: devolver el número de pedido
+    return jsonify({"order_id": result}), 201

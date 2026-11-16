@@ -46,7 +46,7 @@ def reserve_products():
     success, result = reserve_stock(selected_items)
 
     if not success:
-        return jsonify({"error": result}), 400
+        return jsonify({"error": result}), 409
     return jsonify({"items": result}), 200
 
 @catalog_bp.route("/products/release", methods=["POST"])
