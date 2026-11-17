@@ -9,17 +9,12 @@ from sales.routes import sales_bp
 
 def create_app():
     app = Flask(__name__, template_folder="../../ui/templates", static_folder="../../ui/static")
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
 
     init_database()
     seed_database()
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(sales_bp)
-
-    @app.route("/")
-    def home():
-        return redirect(url_for("auth.login"))
 
     return app
 

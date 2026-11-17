@@ -1,31 +1,21 @@
-from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for
+from flask import Blueprint, g, jsonify, request
 from auth.decorators import login_required
 from sales.service import  get_clients_by_vendor, process_cart_for_order
 from sales.catalog_client import CatalogUnavailable
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
-@sales_bp.route("/select-clients", methods=["GET", "POST"])
+@sales_bp.route("/clients", methods=["GET"])
 @login_required
-def select_clients():
-
-    vendor_id = session.get("vendor_id")
-
-    if request.method == "GET":
-        search = request.args.get("search", "").strip()
-        clients = get_clients_by_vendor(vendor_id, search)
-        return render_template("select_clients.html", clients=clients, search=search)
-
-    selected_client_id = request.form["client_id"]
-
-    session["selected_client_id"] = selected_client_id
-
-    return redirect(url_for("catalog.products"))
+def list_clients():
+    search = request.args.get("search", "").strip()
+    clients = get_clients_by_vendor(g.vendor_id, search)
+    return jsonify([dict(client) for client in clients])
 
 @sales_bp.route("/orders", methods=["POST"])
 @login_required
 def create_order():
-    vendor_id = session["vendor_id"]
+    vendor_id = g.vendor_id
     data = request.get_json(silent=True) or {}
     client_id = data.get("client_id")
     cart_items = data.get("cart_items")
