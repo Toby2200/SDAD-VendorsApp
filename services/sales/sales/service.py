@@ -30,7 +30,7 @@ def get_clients_by_vendor(vendor_id, search=""):
 
     return clients
 
-def process_cart_for_order(cart_items, vendor_id, client_id):
+def process_cart_for_order(cart_items, vendor_id, client_id, token):
     if not cart_items:
         return False, "No se seleccionó ningún producto."
 
@@ -46,7 +46,7 @@ def process_cart_for_order(cart_items, vendor_id, client_id):
     if not client:
         return False, "El cliente no existe o no está asociado al vendedor."
 
-    success, result = catalog_client.reserve_stock(cart_items)
+    success, result = catalog_client.reserve_stock(cart_items, token)
     if not success:
         return False, result
 
@@ -81,7 +81,7 @@ def process_cart_for_order(cart_items, vendor_id, client_id):
         return True, order_id
     except Exception as e:
         connection.rollback()
-        catalog_client.release_stock(cart_items)
+        catalog_client.release_stock(cart_items, token)
         raise e
     finally:
         connection.close()

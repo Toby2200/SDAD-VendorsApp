@@ -16,6 +16,7 @@ def list_clients():
 @login_required
 def create_order():
     vendor_id = g.vendor_id
+    token = request.headers["Authorization"].removeprefix("Bearer ")
     data = request.get_json(silent=True) or {}
     client_id = data.get("client_id")
     cart_items = data.get("cart_items")
@@ -26,7 +27,7 @@ def create_order():
 
     # 2. Intentar crear el pedido; si catalog está caído, responder 503
     try:
-        success, result = process_cart_for_order(cart_items, vendor_id, client_id)
+        success, result = process_cart_for_order(cart_items, vendor_id, client_id, token)
     except CatalogUnavailable:
         return jsonify({
             "error": "El catálogo no está disponible en este momento. Inténtalo de nuevo en unos minutos."

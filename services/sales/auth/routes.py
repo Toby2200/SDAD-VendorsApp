@@ -7,7 +7,7 @@ from auth.tokens import create_token
 auth_bp = Blueprint("auth", __name__)
 
 
-@auth_bp.route("/login", methods=["GET", "POST"])
+@auth_bp.route("/login", methods=["POST"])
 def login():
 
     data = request.get_json(silent=True) or {}

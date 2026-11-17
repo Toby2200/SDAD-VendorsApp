@@ -1,17 +1,19 @@
 from flask import Blueprint, jsonify, request
 
 from catalog.service import get_available_products, get_product_by_ids, reserve_stock, release_stock
-#from auth.decorators import login_required
+from auth.decorators import login_required
 
 catalog_bp = Blueprint("catalog", __name__)
 
 @catalog_bp.route("/products", methods=["GET"])
+@login_required
 def list_products():
     search_query = request.args.get("search", "").strip()
     products = get_available_products(search_query=search_query)
     return jsonify([dict(product) for product in products])
 
 @catalog_bp.route("/products/details", methods=["POST"])
+@login_required
 def products_details():
     data = request.get_json(silent=True) or {}
     product_ids = data.get("product_ids", [])
@@ -38,6 +40,7 @@ def read_items_from_request():
     return selected_items, None, None
 
 @catalog_bp.route("/products/reserve", methods=["POST"])
+@login_required
 def reserve_products():
     selected_items, error_response, status_code = read_items_from_request()
     if error_response:
@@ -50,6 +53,7 @@ def reserve_products():
     return jsonify({"items": result}), 200
 
 @catalog_bp.route("/products/release", methods=["POST"])
+@login_required
 def release_products():
     selected_items, error_response, status_code = read_items_from_request()
     if error_response:
