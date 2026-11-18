@@ -1,18 +1,28 @@
 import os
-from flask import Flask
+from flask import Flask, request
 
 from database.database import init_database
 from database.seed import seed_database
 from catalog.routes import catalog_bp
 
+ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080")
+
 def create_app():
-    app = Flask(__name__, template_folder="../../ui/templates", static_folder="../../ui/static")
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+    app = Flask(__name__)
 
     init_database()
     seed_database()
 
     app.register_blueprint(catalog_bp)
+
+    @app.after_request
+    def add_cors_headers(response):
+        if request.headers.get("Origin") == ALLOWED_ORIGIN:
+            response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
+            response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Vary"] = "Origin"
+        return response
 
     return app
 

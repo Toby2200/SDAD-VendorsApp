@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen del carrito · Vendors App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left">
+                <a href="catalog.html" class="btn btn-ghost btn-sm">← Regresar</a>
+                <span class="brand">Vendors App</span>
+            </div>
+            <button id="logoutBtn" class="btn btn-outline btn-sm">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="error" class="alert alert-error" style="display: none;"></div>
+
+        <span class="step">Paso 3 de 3</span>
+        <h2>Tu Carrito de Compras</h2>
+        <p class="muted">Cliente: <strong id="clientName"></strong></p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Precio Unitario</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="cartRows"></tbody>
+            </table>
+        </div>
+
+        <div class="cart-actions">
+            <a href="catalog.html" class="btn-back">← Volver al Catálogo y Modificar</a>
+            <button type="button" id="confirmBtn" class="btn-confirm" disabled>Confirmar y Realizar Pedido</button>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        requireLogin();
+
+        const client = getClient();
+        const cart = getCart();
+        if (!client) {
+            window.location.href = "clients.html";
+        } else if (cart.length === 0) {
+            window.location.href = "catalog.html";
+        } else {
+            document.getElementById("clientName").textContent = client.name;
+        }
+
+        async function loadSummary() {
+            hideError();
+            const rows = document.getElementById("cartRows");
+            try {
+                // Flujo del lado del cliente: el UI le pide los datos actuales a catalog
+                const products = await catalogApi("/products/details", {
+                    method: "POST",
+                    body: { product_ids: cart.map((item) => item.product_id) },
+                });
+                const byId = {};
+                products.forEach((product) => { byId[product.id_product] = product; });
+
+                let total = 0;
+                rows.innerHTML = "";
+                cart.forEach((item) => {
+                    const product = byId[item.product_id];
+                    if (!product) {
+                        showError("Algún producto del carrito ya no está disponible.");
+                        return;
+                    }
+                    const subtotal = product.price * item.quantity;
+                    total += subtotal;
+
+                    const row = document.createElement("tr");
+                    row.append(
+                        cell(product.code),
+                        cell(product.description),
+                        cell(money(product.price)),
+                        cell(item.quantity),
+                        cell(money(subtotal)),
+                    );
+                    rows.appendChild(row);
+                });
+
+                const totalRow = document.createElement("tr");
+                totalRow.className = "total-row";
+                const label = cell("Total General:");
+                label.colSpan = 4;
+                label.style.textAlign = "right";
+                totalRow.append(label, cell(money(total)));
+                rows.appendChild(totalRow);
+
+                const button = document.getElementById("confirmBtn");
+                button.textContent = "Confirmar y Realizar Pedido (" + money(total) + ")";
+                button.disabled = false;
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        document.getElementById("confirmBtn").addEventListener("click", async () => {
+            hideError();
+            const button = document.getElementById("confirmBtn");
+            button.disabled = true;
+            try {
+                // Flujo del lado del servidor: sales reserva el stock en catalog
+                const data = await salesApi("/sales/orders", {
+                    method: "POST",
+                    body: {
+                        client_id: client.client_id,
+                        cart_items: cart.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+                    },
+                });
+                saveCart([]);
+                window.location.href = "success.html?order=" + data.order_id;
+            } catch (error) {
+                showError(error.message);
+                button.disabled = false;
+            }
+        });
+
+        loadSummary();
+    </script>
+</body>
+</html>

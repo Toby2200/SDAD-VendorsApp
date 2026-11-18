@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Confirmado · Vendors App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left"><span class="brand">Vendors App</span></div>
+            <button id="logoutBtn" class="btn btn-outline btn-sm">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card card-narrow success">
+            <div class="success-icon">✓</div>
+            <h2>¡Pedido Registrado con Éxito!</h2>
+            <p class="muted">La orden se guardó correctamente y el inventario fue actualizado.</p>
+            <div class="order-number">
+                <span>Número de Orden:</span>
+                <strong id="orderNumber"></strong>
+            </div>
+            <a href="clients.html" class="btn btn-block">Hacer otro pedido</a>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        requireLogin();
+        const order = new URLSearchParams(window.location.search).get("order");
+        document.getElementById("orderNumber").textContent = "#" + order;
+    </script>
+</body>
+</html>
