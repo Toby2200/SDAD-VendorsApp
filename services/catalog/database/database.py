@@ -1,42 +1,34 @@
 import os
-import sqlite3
+import time
+import pymssql
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-DEFAULT_DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
-DATABASE_FILENAME = "catalog.db"
-
-
-def get_database_path():
-    data_dir = os.getenv("DATA_DIR", DEFAULT_DATA_DIR)
-    return os.path.join(data_dir, DATABASE_FILENAME)
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "1433"))
+DB_NAME = os.getenv("DB_NAME", "catalog_db")
+DB_USER = os.getenv("DB_USER", "catalog_user")
+DB_CONNECT_RETRIES = int(os.getenv("DB_CONNECT_RETRIES", "5"))
+DB_RETRY_DELAY_S = float(os.getenv("DB_RETRY_DELAY_S", "3"))
 
 
 def get_connection():
-    database_path = get_database_path()
 
-    os.makedirs(os.path.dirname(database_path), exist_ok=True)
+    password = os.getenv("CATALOG_DB_PASSWORD", "Catalog_Local_2026")
+    if not password:
+        raise RuntimeError("CATALOG_DB_PASSWORD environment variable is not set.")
 
-    connection = sqlite3.connect(database_path)
-
-    connection.row_factory = sqlite3.Row
-
-    connection.execute("PRAGMA foreign_keys = ON;")
-
-    return connection
-
-def init_database():
-    connection = get_connection()
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id_product INTEGER PRIMARY KEY AUTOINCREMENT,
-            code TEXT NOT NULL UNIQUE,
-            description TEXT NOT NULL,
-            quantity INTEGER NOT NULL DEFAULT 0,
-            active INTEGER NOT NULL DEFAULT 1,
-            price REAL NOT NULL
-        )
-    """)
-    connection.commit()
-    connection.close()
+    for attempt in range(1, DB_CONNECT_RETRIES + 1):
+        try:
+           return pymssql.connect(
+                server=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=password,
+                database=DB_NAME,
+                as_dict=True,
+                login_timeout=10,
+                timeout=30,
+            )
+        except pymssql.OperationalError:
+            if attempt == DB_CONNECT_RETRIES:
+                raise
+            time.sleep(DB_RETRY_DELAY_S)
