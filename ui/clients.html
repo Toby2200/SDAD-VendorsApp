@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seleccionar Cliente · Vendors App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left"><span class="brand">Vendors App</span></div>
+            <button id="logoutBtn" class="btn btn-outline btn-sm">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="error" class="alert alert-error" style="display: none;"></div>
+
+        <span class="step">Paso 1 de 3</span>
+        <h2 id="greeting">Paso 1: Selecciona un Cliente para la Venta</h2>
+
+        <div class="card card-narrow">
+            <form id="searchForm">
+                <label for="search">Buscar cliente:</label>
+                <input type="text" id="search" placeholder="Escribe el nombre del cliente">
+                <button type="submit">Buscar</button>
+            </form>
+            <br>
+
+            <p id="noClients" class="muted" style="display: none;">No se encontraron clientes.</p>
+
+            <form id="clientForm" style="display: none;">
+                <label for="client_id">Cliente:</label>
+                <select id="client_id" required></select>
+                <br><br>
+                <button type="submit">Continuar al Catálogo</button>
+            </form>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        requireLogin();
+
+        const vendor = getVendor();
+        if (vendor) {
+            document.getElementById("greeting").textContent =
+                "Hola " + vendor.name + ", selecciona un cliente para la venta";
+        }
+
+        async function loadClients(search) {
+            hideError();
+            try {
+                const clients = await salesApi("/sales/clients?search=" + encodeURIComponent(search));
+                const select = document.getElementById("client_id");
+                select.innerHTML = '<option value="" disabled selected>-- Selecciona un cliente --</option>';
+
+                clients.forEach((client) => {
+                    const option = document.createElement("option");
+                    option.value = client.client_id;
+                    option.textContent = client.name + " - " + client.ubicacion;
+                    select.appendChild(option);
+                });
+
+                document.getElementById("clientForm").style.display = clients.length ? "block" : "none";
+                document.getElementById("noClients").style.display = clients.length ? "none" : "block";
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        document.getElementById("searchForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            loadClients(document.getElementById("search").value.trim());
+        });
+
+        document.getElementById("clientForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const select = document.getElementById("client_id");
+            saveClient({
+                client_id: Number(select.value),
+                name: select.options[select.selectedIndex].textContent,
+            });
+            saveCart([]);
+            window.location.href = "catalog.html";
+        });
+
+        loadClients("");
+    </script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo · Vendors App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="page-catalog">
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left">
+                <a href="clients.html" class="btn btn-ghost btn-sm">← Regresar</a>
+                <span class="brand">Vendors App</span>
+            </div>
+            <button id="logoutBtn" class="btn btn-outline btn-sm">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="error" class="alert alert-error" style="display: none;"></div>
+
+        <span class="step">Paso 2 de 3</span>
+        <h2>Catálogo de Productos</h2>
+        <p class="muted">Cliente: <strong id="clientName"></strong></p>
+
+        <form id="searchForm" class="card search-card">
+            <label for="search">Buscar producto:</label>
+            <div class="search-row">
+                <input type="text" id="search" placeholder="Busca por código o descripción">
+                <button type="submit">Buscar</button>
+            </div>
+        </form>
+
+        <p id="noProducts" class="muted" style="display: none;">No se encontraron productos.</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Elegir</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Precio</th>
+                        <th>Disponible</th>
+                        <th>Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody id="productRows"></tbody>
+            </table>
+        </div>
+
+        <div class="sticky-cart-bar">
+            <div>
+                <span id="itemCount" style="font-size: 1.1em; font-weight: bold;">0 productos seleccionados</span>
+            </div>
+            <div>
+                <span style="margin-right: 15px; font-size: 1.2em;">Total: <strong id="cartTotal">$0.00</strong></span>
+                <button type="button" id="viewCartBtn" class="cart-btn" disabled>Ver Carrito</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        requireLogin();
+
+        const client = getClient();
+        if (!client) {
+            window.location.href = "clients.html";
+        } else {
+            document.getElementById("clientName").textContent = client.name;
+        }
+
+        // El carrito sobrevive a las búsquedas: { product_id: {quantity, price} }
+        const selected = {};
+        getCart().forEach((item) => {
+            selected[item.product_id] = { quantity: item.quantity, price: item.price || 0 };
+        });
+
+        function updateFloatingBar() {
+            let total = 0;
+            let count = 0;
+            Object.values(selected).forEach((item) => {
+                total += item.price * item.quantity;
+                count += item.quantity;
+            });
+            document.getElementById("itemCount").textContent =
+                count + (count === 1 ? " producto seleccionado" : " productos seleccionados");
+            document.getElementById("cartTotal").textContent = money(total);
+            document.getElementById("viewCartBtn").disabled = count === 0;
+        }
+
+        function buildRow(product) {
+            const row = document.createElement("tr");
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = product.id_product in selected;
+
+            const quantity = document.createElement("input");
+            quantity.type = "number";
+            quantity.min = 1;
+            quantity.max = product.quantity;
+            quantity.value = selected[product.id_product] ? selected[product.id_product].quantity : 1;
+
+            function sync() {
+                let value = parseInt(quantity.value, 10);
+                if (isNaN(value) || value < 1) value = 1;
+                if (value > product.quantity) value = product.quantity;
+                quantity.value = value;
+
+                if (checkbox.checked) {
+                    selected[product.id_product] = { quantity: value, price: product.price };
+                } else {
+                    delete selected[product.id_product];
+                }
+                updateFloatingBar();
+            }
+            checkbox.addEventListener("change", sync);
+            quantity.addEventListener("change", sync);
+
+            const checkCell = document.createElement("td");
+            checkCell.appendChild(checkbox);
+            const quantityCell = document.createElement("td");
+            quantityCell.appendChild(quantity);
+
+            row.append(
+                checkCell,
+                cell(product.code),
+                cell(product.description),
+                cell(money(product.price)),
+                cell(product.quantity),
+                quantityCell,
+            );
+            return row;
+        }
+
+        async function loadProducts(search) {
+            hideError();
+            const rows = document.getElementById("productRows");
+            try {
+                const products = await catalogApi("/products?search=" + encodeURIComponent(search));
+                rows.innerHTML = "";
+                products.forEach((product) => rows.appendChild(buildRow(product)));
+                document.getElementById("noProducts").style.display = products.length ? "none" : "block";
+            } catch (error) {
+                rows.innerHTML = "";
+                showError(error.message);
+            }
+        }
+
+        document.getElementById("searchForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            loadProducts(document.getElementById("search").value.trim());
+        });
+
+        document.getElementById("viewCartBtn").addEventListener("click", () => {
+            const cart = Object.entries(selected).map(([productId, item]) => ({
+                product_id: Number(productId),
+                quantity: item.quantity,
+                price: item.price,
+            }));
+            saveCart(cart);
+            window.location.href = "cart.html";
+        });
+
+        updateFloatingBar();
+        loadProducts("");
+    </script>
+</body>

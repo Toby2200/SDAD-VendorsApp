@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión · Vendors App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-left"><span class="brand">Vendors App</span></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="error" class="alert alert-error" style="display: none;"></div>
+
+        <div class="card card-narrow">
+            <h1>Vendor Login</h1>
+            <form id="loginForm">
+                <label for="mail">Email:</label>
+                <input type="email" id="mail" required>
+                <br><br>
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+                <br><br>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (getToken()) {
+            window.location.href = "clients.html";
+        }
+
+        document.getElementById("loginForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            hideError();
+            try {
+                const data = await salesApi("/login", {
+                    method: "POST",
+                    body: {
+                        mail: document.getElementById("mail").value,
+                        password: document.getElementById("password").value,
+                    },
+                });
+                saveSession(data.token, data.vendor);
+                window.location.href = "clients.html";
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+    </script>
+</body>
+</html>
