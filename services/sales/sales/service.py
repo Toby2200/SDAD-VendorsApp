@@ -3,28 +3,29 @@ from sales import catalog_client
 
 def get_clients_by_vendor(vendor_id, search=""):
     connection = get_connection()
+    cursor = connection.cursor()
 
     if search:
-        clients = connection.execute(
-            """
-            SELECT *
+        cursor.execute(
+             """
+            SELECT TOP 25 *
             FROM clients
-            WHERE vendor_id = ?
-            AND name LIKE ?
-            LIMIT 25
+            WHERE vendor_id = %s
+            AND name LIKE %s
             """,
             (vendor_id, f"%{search}%")
-        ).fetchall()
+        )
+        clients = cursor.fetchall()
     else:
-        clients = connection.execute(
+        cursor.execute(
             """
-            SELECT *
+            SELECT TOP 25 *
             FROM clients
-            WHERE vendor_id = ?
-            LIMIT 25
+            WHERE vendor_id = %s
             """,
             (vendor_id,)
-        ).fetchall()
+        )
+        clients = cursor.fetchall()
 
     connection.close()
 
@@ -36,10 +37,12 @@ def process_cart_for_order(cart_items, vendor_id, client_id, token):
 
     connection = get_connection()
     try:
-        client = connection.execute(
-            "SELECT * FROM clients WHERE client_id = ? AND vendor_id = ?",
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT * FROM clients WHERE client_id = %s AND vendor_id = %s",
             (client_id, vendor_id)
-        ).fetchone()
+        )
+        client = cursor.fetchone()
     finally:
         connection.close()
 
@@ -54,18 +57,20 @@ def process_cart_for_order(cart_items, vendor_id, client_id, token):
 
     connection = get_connection()
     try:
-        cursor = connection.execute(
-            "INSERT INTO orders (vendor_id, client_id, date) VALUES (?, ?, datetime('now'))",
+        cursor = connection.cursor()
+
+        cursor.execute(
+            "INSERT INTO orders (vendor_id, client_id, [date]) OUTPUT INSERTED.id_order VALUES (%s, %s, SYSUTCDATETIME())",
             (vendor_id, client_id),
         )
-        order_id = cursor.lastrowid
+        order_id = cursor.fetchone()["id_order"]
 
         for item in reserved_items:
-            connection.execute(
+            cursor.execute(
                 """
                 INSERT INTO orderDetails
                 (id_order, id_product, code, description, quantity, unit_price, subtotal)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     order_id,

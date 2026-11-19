@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request
 
-from database.database import init_database
+from database.migrate import run_migrations
 from database.seed import seed_database
 from auth.routes import auth_bp
 from sales.routes import sales_bp
@@ -11,7 +11,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080")
 def create_app():
     app = Flask(__name__)
 
-    init_database()
+    run_migrations()
     seed_database()
 
     app.register_blueprint(auth_bp)

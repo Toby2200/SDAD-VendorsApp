@@ -23,11 +23,12 @@ def prepare_vendor_records(raw_data):
 def insert_vendors(vendors_data):
     connection = get_connection()
     try:
-        connection.executemany(
+        cursor = connection.cursor()
+        cursor.executemany(
             """
-            INSERT OR IGNORE INTO vendors
+            INSERT INTO vendors
             (name, last_name, mail, password, active)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             vendors_data
         )
@@ -38,11 +39,12 @@ def insert_vendors(vendors_data):
 def insert_clients(clients_data):
     connection = get_connection()
     try:
-        connection.executemany(
+        cursor = connection.cursor()
+        cursor.executemany(
             """
-            INSERT OR IGNORE INTO clients
+            INSERT INTO clients
             (name, ubicacion, mail, cedula_juridica, vendor_id)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             clients_data
         )
@@ -62,8 +64,9 @@ def seed_clients():
 def is_table_empty(table_name):
     connection = get_connection()
     try:
-        row = connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
-        return row[0] == 0
+        cursor = connection.cursor()
+        cursor.execute(f"SELECT COUNT(*) AS total FROM {table_name}")
+        return cursor.fetchone()["total"] == 0
     finally:
         connection.close()
 

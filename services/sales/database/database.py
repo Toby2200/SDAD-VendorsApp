@@ -1,80 +1,34 @@
 import os
-import sqlite3
+import time
+import pymssql
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-DEFAULT_DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
-DATABASE_FILENAME = "sales.db"
-
-
-def get_database_path():
-    data_dir = os.getenv("DATA_DIR", DEFAULT_DATA_DIR)
-    return os.path.join(data_dir, DATABASE_FILENAME)
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "1433"))
+DB_NAME = os.getenv("DB_NAME", "sales_db")
+DB_USER = os.getenv("DB_USER", "sales_user")
+DB_CONNECT_RETRIES = int(os.getenv("DB_CONNECT_RETRIES", "5"))
+DB_RETRY_DELAY_S = float(os.getenv("DB_RETRY_DELAY_S", "3"))
 
 
 def get_connection():
-    database_path = get_database_path()
 
-    os.makedirs(os.path.dirname(database_path), exist_ok=True)
+    password = os.getenv("SALES_DB_PASSWORD", "Sales_Local_2026")
+    if not password:
+        raise RuntimeError("SALES_DB_PASSWORD environment variable is not set.")
 
-    connection = sqlite3.connect(database_path)
-
-    connection.row_factory = sqlite3.Row
-
-    connection.execute("PRAGMA foreign_keys = ON;")
-
-    return connection
-
-def init_database():
-    connection = get_connection()
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS vendors (
-            vendor_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            mail TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            active INTEGER NOT NULL DEFAULT 1
-        )
-    """)
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS clients (
-            client_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            ubicacion TEXT,
-            mail TEXT,
-            cedula_juridica TEXT,
-            vendor_id INTEGER NOT NULL,
-            FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id)
-        )
-    """)
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS orders (
-            id_order INTEGER PRIMARY KEY AUTOINCREMENT,
-            vendor_id INTEGER NOT NULL,
-            client_id INTEGER NOT NULL,
-            date TEXT NOT NULL,
-            FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id),
-            FOREIGN KEY (client_id) REFERENCES clients(client_id)
-        )
-    """)
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS orderDetails (
-            id_orderDetail INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_order INTEGER NOT NULL,
-            id_product INTEGER NOT NULL,
-            code TEXT NOT NULL,
-            description TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            unit_price REAL NOT NULL,
-            subtotal REAL NOT NULL,
-            FOREIGN KEY (id_order) REFERENCES orders(id_order)
-        )
-    """)
-
-    connection.commit()
-    connection.close()
+    for attempt in range(1, DB_CONNECT_RETRIES + 1):
+        try:
+           return pymssql.connect(
+                server=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=password,
+                database=DB_NAME,
+                as_dict=True,
+                login_timeout=10,
+                timeout=30,
+            )
+        except pymssql.OperationalError:
+            if attempt == DB_CONNECT_RETRIES:
+                raise
+            time.sleep(DB_RETRY_DELAY_S)

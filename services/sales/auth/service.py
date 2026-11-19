@@ -3,15 +3,17 @@ from werkzeug.security import check_password_hash
 
 def get_vendor_by_email(mail):
     connection = get_connection()
+    cursor = connection.cursor()
 
-    vendor = connection.execute(
+    cursor.execute(
         """
         SELECT *
         FROM vendors
-        WHERE mail = ?
+        WHERE mail = %s
         """,
         (mail,)
-    ).fetchone()
+    )
+    vendor = cursor.fetchone()
 
     connection.close()
 
