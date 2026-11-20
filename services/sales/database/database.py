@@ -10,13 +10,13 @@ DB_CONNECT_RETRIES = int(os.getenv("DB_CONNECT_RETRIES", "5"))
 DB_RETRY_DELAY_S = float(os.getenv("DB_RETRY_DELAY_S", "3"))
 
 
-def get_connection():
+def get_connection(retries=DB_CONNECT_RETRIES):
 
-    password = os.getenv("SALES_DB_PASSWORD", "Sales_Local_2026")
+    password = os.getenv("DB_PASSWORD")
     if not password:
-        raise RuntimeError("SALES_DB_PASSWORD environment variable is not set.")
+        raise RuntimeError("CATALOG_DB_PASSWORD environment variable is not set.")
 
-    for attempt in range(1, DB_CONNECT_RETRIES + 1):
+    for attempt in range(1, retries + 1):
         try:
            return pymssql.connect(
                 server=DB_HOST,
@@ -29,6 +29,6 @@ def get_connection():
                 timeout=30,
             )
         except pymssql.OperationalError:
-            if attempt == DB_CONNECT_RETRIES:
+            if attempt == retries:
                 raise
             time.sleep(DB_RETRY_DELAY_S)
