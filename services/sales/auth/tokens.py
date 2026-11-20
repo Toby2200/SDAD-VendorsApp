@@ -1,7 +1,9 @@
 import os
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-TOKEN_SECRET = os.getenv("TOKEN_SECRET", "dev-token-secret")
+TOKEN_SECRET = os.getenv("TOKEN_SECRET")
+if not TOKEN_SECRET:
+    raise RuntimeError("TOKEN_SECRET environment variable is not set.")
 TOKEN_MAX_AGE_S = int(os.getenv("TOKEN_MAX_AGE_S", "28800"))   # 8 horas
 
 _serializer = URLSafeTimedSerializer(TOKEN_SECRET, salt="vendor-auth")
