@@ -16,11 +16,12 @@ RAW_PRODUCTS = [
 def insert_products(products_data):
     connection = get_connection()
     try:
-        connection.executemany(
+        cursor = connection.cursor()
+        cursor.executemany(
             """
-            INSERT OR IGNORE INTO products
+            INSERT INTO products
             (code, description, quantity, active, price)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             products_data
         )
@@ -35,8 +36,9 @@ def seed_products():
 def is_table_empty(table_name):
     connection = get_connection()
     try:
-        row = connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
-        return row[0] == 0
+        cursor = connection.cursor()
+        cursor.execute(f"SELECT COUNT(*) AS total FROM {table_name}")
+        return cursor.fetchone()["total"] == 0
     finally:
         connection.close()
 

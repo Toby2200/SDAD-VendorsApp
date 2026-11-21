@@ -1,9 +1,8 @@
 from database.database import get_connection
-import sqlite3
 
 def get_available_products(search_query=None):
     connection = get_connection()
-    connection.row_factory = sqlite3.Row
+    cursor = connection.cursor()
     if search_query:
         # Preparamos el patrón para coincidencia parcial
         search_pattern = f"%{search_query.strip()}%"
@@ -12,10 +11,10 @@ def get_available_products(search_query=None):
             FROM products
             WHERE active = 1
             AND quantity > 0
-            AND (code LIKE ? OR description LIKE ?)
+            AND (code LIKE %s OR description LIKE %s)
             ORDER BY description ASC
         """
-        products = connection.execute(query, (search_pattern, search_pattern)).fetchall()
+        cursor.execute(query, (search_pattern, search_pattern))
     else: 
         query = """
             SELECT *
@@ -24,9 +23,14 @@ def get_available_products(search_query=None):
             AND quantity > 0
             ORDER BY description ASC
         """
-        products = connection.execute(query).fetchall()
+        cursor.execute(query)
+    products = cursor.fetchall()
 
     connection.close()
+
+    # SQL Server devuelve el precio como Decimal; lo pasamos a número para el JSON
+    for product in products:
+        product["price"] = float(product["price"])
     return products
 
 def validate(selected_items):
@@ -34,7 +38,7 @@ def validate(selected_items):
         return [], ["No se seleccionó ningún producto."]
 
     connection = get_connection()
-    connection.row_factory = sqlite3.Row
+    cursor = connection.cursor()
 
     validated_cart = []
     warnings = []
@@ -43,8 +47,9 @@ def validate(selected_items):
         p_id = item["product_id"]
         requested_qty = max(1, item["quantity"])
 
-        query = "SELECT description, quantity FROM products WHERE id_product = ? AND active = 1"
-        prod = connection.execute(query, (p_id,)).fetchone()
+        query = "SELECT description, quantity FROM products WHERE id_product = %s AND active = 1"
+        cursor.execute(query, (p_id,))
+        prod = cursor.fetchone()
 
         if not prod:
             warnings.append(f"El producto con ID {p_id} ya no está disponible.")
@@ -71,17 +76,22 @@ def get_product_by_ids(product_ids):
     if not product_ids:
         return []
 
-    placeholders = ', '.join('?' for _ in product_ids)
+    placeholders = ', '.join('%s' for _ in product_ids)
 
     connection = get_connection()
-    connection.row_factory = sqlite3.Row
+    cursor = connection.cursor()
     query = f"SELECT * FROM products WHERE id_product IN ({placeholders}) AND active = 1"
-    product = connection.execute(query, product_ids).fetchall()
+    cursor.execute(query, tuple(product_ids))
+    product = cursor.fetchall()
     connection.close()
-    return [dict(row) for row in product]
+
+    for row in product:
+        row["price"] = float(row["price"])
+    return product
 
 def reserve_stock(cart_items):
     connection = get_connection()
+    cursor = connection.cursor()
     try:
         reserved = []
 
@@ -92,11 +102,11 @@ def reserve_stock(cart_items):
             if qty_to_reserve <= 0:
                 raise ValueError(f"La cantidad para el producto con ID {p_id} debe ser mayor que cero.")
 
-            cursor = connection.execute(
+            cursor.execute(
                 """
                 UPDATE products
-                SET quantity = quantity - ?
-                WHERE id_product = ? AND active = 1 AND quantity >= ?
+                SET quantity = quantity - %s
+                WHERE id_product = %s AND active = 1 AND quantity >= %s
                 """,
                 (qty_to_reserve, p_id, qty_to_reserve),
             )
@@ -106,18 +116,20 @@ def reserve_stock(cart_items):
                     f"El producto con ID {p_id} no está disponible o no tiene stock suficiente."
                 )
 
-            prod = connection.execute(
-                "SELECT code, description, price FROM products WHERE id_product = ?",
+            cursor.execute(
+                "SELECT code, description, price FROM products WHERE id_product = %s",
                 (p_id,),
-            ).fetchone()
+            )
+            prod = cursor.fetchone()
+            price = float(prod["price"])
 
             reserved.append({
                 "product_id": p_id,
                 "code": prod["code"],
                 "description": prod["description"],
-                "unit_price": prod["price"],
+                "unit_price": price,
                 "quantity": qty_to_reserve,
-                "subtotal": round(prod["price"] * qty_to_reserve, 2),
+                "subtotal": round(price * qty_to_reserve, 2),
             })
 
         connection.commit()
@@ -132,6 +144,7 @@ def reserve_stock(cart_items):
 
 def release_stock(cart_items):
     connection = get_connection()
+    cursor = connection.cursor()
     try:
         for item in cart_items:
             p_id = item["product_id"]
@@ -140,12 +153,14 @@ def release_stock(cart_items):
             if qty_to_release <= 0:
                 raise ValueError(f"La cantidad a liberar para el producto con ID {p_id} debe ser mayor que cero.")
 
-            update_query = "UPDATE products SET quantity = quantity + ? WHERE id_product = ?"
+            update_query = "UPDATE products SET quantity = quantity + %s WHERE id_product = %s"
+            cursor.execute(update_query, (qty_to_release, p_id))
 
-            if update_query == 0:
-                raise ValueError(f"No se pudo construir la consulta de actualización para el producto con ID {p_id}.")
-            connection.commit()
-            return True, None
+            if cursor.rowcount == 0:
+                raise ValueError(f"El producto con ID {p_id} no existe.")
+
+        connection.commit()
+        return True, None
     except ValueError as error:
         connection.rollback()
         return False, str(error)
