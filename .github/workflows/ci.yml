@@ -63,3 +63,18 @@ jobs:
         run: docker build -t catalog:${{ github.sha }} services/catalog
       - name: Build sales image
         run: docker build -t sales:${{ github.sha }} services/sales
+  
+  validate:
+    name: Validate the system description
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validators
+        run: pip install openapi-spec-validator==0.7.1
+      - name: Validate each openapi.yaml against the OpenAPI specification
+        run: |
+          python -m openapi_spec_validator services/catalog/openapi.yaml
+          python -m openapi_spec_validator services/sales/openapi.yaml

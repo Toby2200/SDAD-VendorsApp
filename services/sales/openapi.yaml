@@ -1,0 +1,167 @@
+openapi: 3.0.3
+info:
+  title: Sales service
+  version: 1.0.0
+  description: >
+    Owns vendors, clients, orders and orderDetails, and the login. To create an order it
+    calls the catalog service (POST /products/reserve, and POST /products/release as compensation).
+servers:
+  - url: http://localhost:8002
+    description: Local (docker compose)
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness and database check
+      description: Returns 200 when the service can read and write its own database.
+      security: []
+      responses:
+        "200":
+          description: Service and database are working
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database cannot be read or written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /login:
+    post:
+      summary: Log in a vendor and get a signed token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mail, password]
+              properties:
+                mail: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Valid credentials of an active vendor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, vendor]
+                properties:
+                  token: { type: string, description: "Signed token, valid for 8 hours" }
+                  vendor:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      last_name: { type: string }
+        "400":
+          description: mail or password missing
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Wrong credentials or inactive vendor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /sales/clients:
+    get:
+      summary: Clients of the logged-in vendor (at most 25)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Partial match on the client name
+          schema: { type: string }
+      responses:
+        "200":
+          description: Clients that belong to the vendor in the token
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Client" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /sales/orders:
+    post:
+      summary: Create an order (reserves the stock in catalog)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, cart_items]
+              properties:
+                client_id: { type: integer }
+                cart_items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [product_id, quantity]
+                    properties:
+                      product_id: { type: integer }
+                      quantity: { type: integer, minimum: 1 }
+      responses:
+        "201":
+          description: Order saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order_id]
+                properties:
+                  order_id: { type: integer }
+        "400":
+          description: Malformed body
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: Not enough stock, or the client does not belong to the vendor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: The catalog service did not answer in time
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token returned by POST /login
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: Commit SHA of the deployed image }
+    Client:
+      type: object
+      properties:
+        client_id: { type: integer }
+        name: { type: string }
+        ubicacion: { type: string, nullable: true }
+        mail: { type: string, nullable: true }
+        cedula_juridica: { type: string, nullable: true }
+        vendor_id: { type: integer }

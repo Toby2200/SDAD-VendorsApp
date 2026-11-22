@@ -1,0 +1,182 @@
+openapi: 3.0.3
+info:
+  title: Catalog service
+  version: 1.0.0
+  description: >
+    Owns the products table. Lists the products a vendor can sell and keeps the stock.
+    Sales calls /products/reserve and /products/release during the checkout.
+servers:
+  - url: http://localhost:8001
+    description: Local (docker compose)
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness and database check
+      description: Returns 200 when the service can read and write its own database.
+      security: []
+      responses:
+        "200":
+          description: Service and database are working
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: The database cannot be read or written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /products:
+    get:
+      summary: List the active products that have stock
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Partial match on the code or the description
+          schema: { type: string }
+      responses:
+        "200":
+          description: Products ordered by description
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Product" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /products/details:
+    post:
+      summary: Current data of several products (used by the UI for the cart summary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_ids]
+              properties:
+                product_ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: The active products among the requested ids
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Product" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /products/reserve:
+    post:
+      summary: Check and subtract stock for an order, all or nothing (called by sales)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StockRequest" }
+      responses:
+        "200":
+          description: Stock reserved; returns the snapshot sales stores in orderDetails
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ReservedItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: A product is inactive, unknown or has not enough stock; nothing was reserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /products/release:
+    post:
+      summary: Give stock back (compensation, called by sales when saving the order fails)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StockRequest" }
+      responses:
+        "200":
+          description: Stock released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "400":
+          description: Malformed body, or a product does not exist
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token returned by POST /login of the sales service
+  responses:
+    BadRequest:
+      description: The request body is malformed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status: { type: string, enum: [ok, error] }
+        db: { type: string, enum: [ok, error] }
+        version: { type: string, description: Commit SHA of the deployed image }
+    Product:
+      type: object
+      properties:
+        id_product: { type: integer }
+        code: { type: string }
+        description: { type: string }
+        quantity: { type: integer, description: Units in stock }
+        active: { type: boolean }
+        price: { type: number }
+    StockRequest:
+      type: object
+      required: [selected_items]
+      properties:
+        selected_items:
+          type: array
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: integer }
+              quantity: { type: integer, minimum: 1 }
+    ReservedItem:
+      type: object
+      required: [product_id, code, description, unit_price, quantity, subtotal]
+      properties:
+        product_id: { type: integer }
+        code: { type: string }
+        description: { type: string }
+        unit_price: { type: number }
+        quantity: { type: integer }
+        subtotal: { type: number }
