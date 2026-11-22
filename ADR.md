@@ -1,4 +1,4 @@
-## [1]. <Backend language and framework choice>
+## [1]. Backend language and framework choice
 Date: 2026-09-26
 Status: Decided
 Context: I need to build a small-medium project with an SQLite database where we have read/write. The stack should be for rapid development, and ready for feature division.
@@ -7,7 +7,7 @@ Alternatives considered: Django can work great for a really big project, but may
 Consequences: The project will be really light, and structured with its dependencies. But this project needs to be organized in order to have the two feature working almost independent. 
 
 
-## [2]. <How you scoped your two feature domains to be independently modularizable>
+## [2]. How you scoped your two feature domains to be independently modularizable
 Date: 2026-09-26
 Status: Decided
 Context: The system needs at least two independent features, where they could work together. But the domains can interact through clearly defined interfaces without depending on each other's internal implementation. In order to achieve this we need to consider how we are going to organize the project, and how each feature is connected with the database.
@@ -16,7 +16,7 @@ Alternatives considered: Another alternative that we had was to organized the pr
 Consequences: Dividing the project into package by feature establishes clear boundries between each feature, which makes easy to unit test each module. The tradeoff is that we could have some code duplication between each module.
 
 
-## [3]. <A data-model/schema decision in SQLite>
+## [3]. A data-model/schema decision in SQLite
 Date: 2026-09-28
 Status: Decided
 Context: We need to define the schema for clearance and persistance inside the users (vendors) table, for catalog table, and sales tables. The system should enforce relational integrity, while having a legal picture of the orders, ensuring that historical records remain immutable even if a product changes.
@@ -70,7 +70,7 @@ orderDetails{
 }
 
 
-## [4]. <Your testing approach>
+## [4]. Your testing approach
 Date: 2026-10-04
 Status: Decided
 Context: To state that the program works good, is not only that the happy path works. We need to test each part, we could do unit testing, integration, and E2E. To measure the amount of coverage we have in testing is from all the lines we have how many are running when we test? And for this specific projetc we need at least 70% tested code. 
@@ -79,10 +79,20 @@ Alternatives considered: For testing there are many alternative ways to do each 
 Consequences: The consecuences of choosing which alternative to use, is if you want to also check states, or cookies probably is a good idea to use a client. But if you want to only try the functionality, and know wheres the exact location of the error it is a better option to use 100% mocking. The reason we did not use the real db was because it was dynamic, so each try we tested the program the assertions where giving different results. While having a template db makes the answers always teh same. 
 
 
-## [5]. <One thing you deliberately chose not to build>
+## [5]. One thing you deliberately chose not to build
 Date: 2026-10-04
 Status: Decided
 Context: When I planed this aplication in the planing stage, I was thinking of what features I could add. Obvously I thought of many ideas which could work great for this project.
 Decision: I thought of making a vector database within the products description. So we could recomend people similar object to the ones they are looking for. Since I was trying to create the whole project by my self, almost without AI copy/paste, so it was difficult to advance a lot in one day. And this was the first class where we needed to create APIs or do something else than just algorithms in python. 
 Alternatives considered: What we are doing right now is when searching for a product we just show products with same letters as the one the vendor (client) is searching.
 Consequences: The application is running good y a happy path, but I think if this was a real aplication it will give a lot profit to the business to have the vector database for recomendation. Due to the fact that if they get out of stock of one specific products, but they have a really similar one. They could sell the that is really similar instead of loosing the order.
+
+
+## [6]. Splitting the monolith into catalog and sales services: did ADR-2 hold?
+Date: 2026-11-22
+Status: Decided
+Context: For the assignment 2 I needed to use a microservice architecture in order to deploy my application. For the ADR-2 I planned to use monolith in order to divide both services (Sales, and Catalog). The division worked, but there was not fully independence between them, matter a fact some functions from sales updated tables that where mainly used in catalog. 
+Decision: I splitted following the two services I used for ADR-2, but now the catalog microservice own the products table. The sales service owns vendores, clients, orders and orderDetails, and is the one in chrage of authetication, since the vendors (users) table is inside the service. POST /login returns a signed token using itsdangerous, so that both services can verify that the user is login, using similar structure that before with the login_required decorator. The only cross-seam on the server is the checkout, since it reservces products inside the catalog service, and return the code, description, and price, that sales will store in the orders, and orderDetails snapshot. The cart summary is a client-side flow, where the static UI asks catalog for the current price. The call to catalog has a two seccond tiemout, and if catalog doesn't answer sales will return 503, if saving the order fails after the stock was reserved, the sales will release which give the stock back. This happens because there is no transaction across the to databases.
+Alternatives considered: Two alternatives that I had was using Auth as a third service, but the instructions said that we needed two microservices. And the one I thought had more sense to have it in was sales. And the other option was that Catalog validates the token within Sales in every single request. But this will make catalog fully dependent on Sales, and in microservices we should have full independence between each service.
+Consequences: If we turn on both services, plus the static UI. We get the app working the same as it did before. But we could also turn on only one service, and everything related to it will be running, and working properly. This will be then used for dockerizing, and running all together, and after this to deploy in azure. 
+Did ADR-2 Hold? For the data, yes. Every table moved to exactly one service and the business functions (get_available_products, authenticate_vendor, get_clients_by_vendor) barely changed. For the code, no. The sales domain was reading and writing the catalog's table, and that had to become HTTP endpoints (reserve and release).
