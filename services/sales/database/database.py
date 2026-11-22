@@ -1,29 +1,36 @@
 import os
 import time
+from urllib.parse import unquote, urlsplit
+
 import pymssql
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "1433"))
-DB_NAME = os.getenv("DB_NAME", "sales_db")
-DB_USER = os.getenv("DB_USER", "sales_user")
 DB_CONNECT_RETRIES = int(os.getenv("DB_CONNECT_RETRIES", "5"))
 DB_RETRY_DELAY_S = float(os.getenv("DB_RETRY_DELAY_S", "3"))
 
 
-def get_connection(retries=DB_CONNECT_RETRIES):
+def _connection_settings():
+    """Lee DATABASE_URL, por ejemplo mssql://user:password@host:1433/database"""
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL environment variable is not set.")
 
-    password = os.getenv("DB_PASSWORD")
-    if not password:
-        raise RuntimeError("CATALOG_DB_PASSWORD environment variable is not set.")
+    parts = urlsplit(url)
+    return {
+        "server": parts.hostname,
+        "port": parts.port or 1433,
+        "user": unquote(parts.username or ""),
+        "password": unquote(parts.password or ""),
+        "database": parts.path.lstrip("/"),
+    }
+
+
+def get_connection(retries=DB_CONNECT_RETRIES):
+    settings = _connection_settings()
 
     for attempt in range(1, retries + 1):
         try:
-           return pymssql.connect(
-                server=DB_HOST,
-                port=DB_PORT,
-                user=DB_USER,
-                password=password,
-                database=DB_NAME,
+            return pymssql.connect(
+                **settings,
                 as_dict=True,
                 login_timeout=10,
                 timeout=30,
@@ -31,4 +38,4 @@ def get_connection(retries=DB_CONNECT_RETRIES):
         except pymssql.OperationalError:
             if attempt == retries:
                 raise
-            time.sleep(DB_RETRY_DELAY_S)
+            time.sleep(DB_RETRY_DELAY_S * attempt)

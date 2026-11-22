@@ -163,3 +163,12 @@ SDAD-VendorsApp/
 ├── ADR.md              # Architecture Decision Records
 └── AI_USAGE.md         # AI usage log
 ```
+
+## Security incident log
+
+- **2026-11-19 – Local database passwords committed.** Commits fe50520 and eac6161 contained the
+  default passwords of the *local Docker* SQL Server users (`catalog_user`, `sales_user`) as fallback
+  values in `database.py`. They were never used in Azure. **Action:** removed from the code in
+  762736e (the password now comes only from the environment, with no default), rotated the local
+  passwords in `.env`, and recreated the local database. Azure uses different passwords, stored only
+  as GitHub Actions secrets.
