@@ -1,4 +1,5 @@
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 30000;
+const STARTING_MESSAGE = "El servicio está iniciando. Inténtalo de nuevo en unos minutos.";
 
 function getToken() {
     return localStorage.getItem("token");
@@ -46,7 +47,12 @@ async function apiRequest(baseUrl, path, options = {}) {
             signal: controller.signal,
         });
     } catch (error) {
-        // El servicio está apagado, no responde a tiempo o bloqueó la petición (CORS).
+        // Se acabó el tiempo: casi siempre es un cold start en Azure.
+        if (error.name === "AbortError") {
+            throw new Error(STARTING_MESSAGE);
+        }
+        // El servicio está apagado, o Azure respondió su propio 503 mientras arranca:
+        // esa respuesta no trae cabeceras CORS, así que el navegador la bloquea y llega aquí.
         throw new Error(options.unavailableMessage || "El servicio no está disponible. Inténtalo de nuevo en unos minutos.");
     } finally {
         clearTimeout(timer);
@@ -59,7 +65,14 @@ async function apiRequest(baseUrl, path, options = {}) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(data.error || "Error inesperado (" + response.status + ").");
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        // 502/503/504 sin JSON de mi app: es Azure respondiendo mientras el contenedor arranca.
+        if ([502, 503, 504].includes(response.status)) {
+            throw new Error(STARTING_MESSAGE);
+        }
+        throw new Error("Error inesperado (" + response.status + ").");
     }
     return data;
 }
