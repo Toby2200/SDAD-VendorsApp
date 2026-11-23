@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Lint and test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [catalog, sales]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ruff==0.8.4
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Start a throwaway SQL Server for the tests
+        run: |
+          SA_PASSWORD="Ci_$(openssl rand -hex 12)"
+          echo "::add-mask::$SA_PASSWORD"
+          echo "SA_PASSWORD=$SA_PASSWORD" >> "$GITHUB_ENV"
+          echo "TOKEN_SECRET=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+          docker run -d --name mssql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$SA_PASSWORD" -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+          for i in $(seq 1 40); do
+            if docker exec mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null; then
+              break
+            fi
+            sleep 3
+          done
+          docker exec mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -b \
+            -Q "CREATE DATABASE ${{ matrix.service }}_test"
+
+      - name: Tests with coverage (fails under 70%)
+        run: |
+          export DATABASE_URL="mssql://sa:${SA_PASSWORD}@localhost:1433/${{ matrix.service }}_test"
+          python -m pytest \
+            --cov=database --cov=auth --cov=${{ matrix.service }} \
+            --cov-report=term-missing --cov-fail-under=70
+
+  build:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build catalog image
+        run: docker build -t catalog:${{ github.sha }} services/catalog
+      - name: Build sales image
+        run: docker build -t sales:${{ github.sha }} services/sales
+  
+  validate:
+    name: Validate the system description
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validators
+        run: pip install openapi-spec-validator==0.7.1
+      - name: Validate each openapi.yaml against the OpenAPI specification
+        run: |
+          python -m openapi_spec_validator services/catalog/openapi.yaml
+          python -m openapi_spec_validator services/sales/openapi.yaml

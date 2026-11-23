@@ -52,13 +52,14 @@ def create_app():
                 cursor = connection.cursor()
                 cursor.execute("SELECT 1 AS ok")
                 cursor.fetchone()
+                cursor.execute("INSERT INTO schema_migrations (version) VALUES ('__health_check__')")
+                connection.rollback()
             finally:
                 connection.close()
         except Exception:
-            logger.exception("Health check failed: database unreachable")
-            return jsonify({"status": "unhealthy", "service": SERVICE_NAME, "database": "unreachable", "version": APP_VERSION}), 503
-        return jsonify({"status": "ok", "service": SERVICE_NAME, "database": "ok", "version": APP_VERSION}), 200
-
+            logger.exception("Health check failed: database unreachable or not writable")
+            return jsonify({"status": "error", "db": "error", "version": APP_VERSION}), 503
+        return jsonify({"status": "ok", "db": "ok", "version": APP_VERSION}), 200
     return app
 
 

@@ -35,11 +35,7 @@ services:
       db-init:
         condition: service_completed_successfully
     environment:
-      DB_HOST: db
-      DB_PORT: "1433"
-      DB_NAME: catalog_db
-      DB_USER: catalog_user
-      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+      DATABASE_URL: mssql://catalog_user:${CATALOG_DB_PASSWORD}@db:1433/catalog_db
       TOKEN_SECRET: ${TOKEN_SECRET}
       ALLOWED_ORIGIN: http://localhost:8080
       APP_VERSION: local
@@ -58,11 +54,7 @@ services:
       db-init:
         condition: service_completed_successfully
     environment:
-      DB_HOST: db
-      DB_PORT: "1433"
-      DB_NAME: sales_db
-      DB_USER: sales_user
-      DB_PASSWORD: ${SALES_DB_PASSWORD}
+      DATABASE_URL: mssql://sales_user:${SALES_DB_PASSWORD}@db:1433/sales_db
       TOKEN_SECRET: ${TOKEN_SECRET}
       CATALOG_URL: http://catalog:8000
       CATALOG_TIMEOUT_S: "2"

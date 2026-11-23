@@ -1,86 +1,79 @@
-"""
-conftest.py
------------
-pytest carga este archivo automáticamente ANTES de cualquier test.
-Aquí van las "fixtures": funciones que preparan el escenario de cada test.
-
-Objetivo: que cada test empiece SIEMPRE con la misma base de datos
-(los datos del seed), sin importar si antes se usó la app o se corrió
-otro test. Así un test pasa o falla siempre igual.
-"""
 import os
-import shutil
 import sys
-import tempfile
 
 import pytest
 
-# Permite hacer "from app import app" aunque pytest se corra desde otra carpeta.
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# IMPORTANTE: esto se ejecuta antes de importar app.py.
-# Al importar app.py se llama create_app(), que crea la base de datos.
-# Al apuntar DATA_DIR a una carpeta temporal, ni siquiera ese primer
-# arranque toca tu base de datos real (data/app.db).
-os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="vendors_test_import_")
+if not os.getenv("DATABASE_URL"):
+    pytest.exit("Set DATABASE_URL to a test database before running the tests.", returncode=2)
 
-from app import app as flask_app  # noqa: E402
-from database.database import init_database, DATABASE_FILENAME  # noqa: E402
-from database.seed import seed_database  # noqa: E402
+os.environ.setdefault("TOKEN_SECRET", "test-token-secret")
+
+from app import app as flask_app  # noqa: E402  (create_app aplica las migraciones)
+from auth.tokens import create_token  # noqa: E402
+from database.database import get_connection  # noqa: E402
+from database.seed import RAW_CLIENTS, RAW_VENDORS, insert_clients, insert_vendors, prepare_vendor_records  # noqa: E402
+
+from tests.data import ANDRES  # noqa: E402
+
+# Hashear contraseñas es lento a propósito, así que se hace una sola vez.
+HASHED_VENDORS = prepare_vendor_records(RAW_VENDORS)
+
+def run_sql(sql, params=None):
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql, params)
+        connection.commit()
+    finally:
+        connection.close()
 
 
-@pytest.fixture(scope="session")
-def template_database(tmp_path_factory):
-    """
-    Se ejecuta UNA sola vez por toda la corrida de pytest.
-    Crea una base de datos "plantilla" con las tablas y el seed.
-
-    Se hace una sola vez porque generate_password_hash es lento a
-    propósito (por seguridad). Después, cada test solo copia el archivo.
-    """
-    template_dir = tmp_path_factory.mktemp("template_db")
-    os.environ["DATA_DIR"] = str(template_dir)
-
-    init_database()
-    seed_database()
-
-    return template_dir / DATABASE_FILENAME
+def query_all(sql, params=None):
+    connection = get_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql, params)
+        return cursor.fetchall()
+    finally:
+        connection.close()
 
 
 @pytest.fixture(autouse=True)
-def fresh_database(template_database, tmp_path, monkeypatch):
-    """
-    autouse=True -> se aplica a TODOS los tests sin tener que pedirla.
-
-    Antes de cada test:
-      1. Copia la base de datos plantilla a una carpeta temporal nueva.
-      2. Apunta DATA_DIR a esa carpeta, así get_connection() usa esa copia.
-
-    Después del test, pytest borra la carpeta temporal y monkeypatch
-    restaura DATA_DIR. El siguiente test vuelve a empezar desde cero.
-    """
-    shutil.copy(template_database, tmp_path / DATABASE_FILENAME)
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+def fresh_database():
+    """Cada test empieza con 3 vendedores, 3 clientes y ningún pedido."""
+    run_sql("DELETE FROM orderDetails")
+    run_sql("DELETE FROM orders")
+    run_sql("DELETE FROM clients")
+    run_sql("DELETE FROM vendors")
+    run_sql("DBCC CHECKIDENT ('vendors', RESEED, 0)")
+    run_sql("DBCC CHECKIDENT ('clients', RESEED, 0)")
+    insert_vendors(HASHED_VENDORS)
+    insert_clients(RAW_CLIENTS)
     yield
 
 
 @pytest.fixture
-def app():
+def client():
     flask_app.config["TESTING"] = True
-    return flask_app
+    return flask_app.test_client()
 
 
 @pytest.fixture
-def client(app):
-    """Navegador simulado, sin sesión (usuario NO logueado)."""
-    return app.test_client()
+def token():
+    """Token válido de Andres."""
+    return create_token(ANDRES)
 
 
 @pytest.fixture
-def logged_in_client(client):
-    """Navegador simulado con Andres (vendor_id = 1) ya logueado."""
-    with client.session_transaction() as session:
-        session["vendor_id"] = 1
-    return client
+def auth_headers(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def db_rows():
+    """db_rows("SELECT ...") -> filas de la base de datos de sales."""
+    return query_all
