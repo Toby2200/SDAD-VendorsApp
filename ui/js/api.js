@@ -1,4 +1,4 @@
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 30000;
 const STARTING_MESSAGE = "El servicio está iniciando. Inténtalo de nuevo en unos minutos.";
 
 function getToken() {
