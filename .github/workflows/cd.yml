@@ -1,0 +1,111 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write   # push images to GHCR
+  id-token: write   # ask GitHub for the OIDC token used by azure/login
+
+concurrency:
+  group: deploy-azure
+  cancel-in-progress: false   # never stop a deploy in the middle
+
+env:
+  REGISTRY: ghcr.io/toby2200   # GHCR image names must be lowercase
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    name: Push image (${{ matrix.service }})
+    needs: ci
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [catalog, sales]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          provenance: false   # a single image manifest, which Container Apps can pull
+          tags: ${{ env.REGISTRY }}/sdad-vendorsapp-${{ matrix.service }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Azure
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Point each Container App to the new image
+        run: |
+          az extension add --name containerapp --upgrade --yes --only-show-errors
+          for service in catalog sales; do
+            az containerapp update \
+              --name "${{ vars.PREFIX }}-$service" \
+              --resource-group "${{ vars.RESOURCE_GROUP }}" \
+              --image "${{ env.REGISTRY }}/sdad-vendorsapp-$service:${{ github.sha }}" \
+              --set-env-vars APP_VERSION=${{ github.sha }} \
+              --output none
+          done
+
+      - name: Wait until both services report healthy with the new version
+        run: |
+          # Cold start: the app scales from 0 and the serverless database may be paused,
+          # so we retry for up to ~6 minutes. The run fails if /health never returns 200
+          # with this commit's version (that would mean the new revision is not serving).
+          check() {
+            local url="$1/health"
+            for attempt in $(seq 1 24); do
+              body=$(curl -s --max-time 30 "$url" || true)
+              if echo "$body" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='ok' and d.get('version')=='${{ github.sha }}' else 1)" 2>/dev/null; then
+                echo "$url healthy: $body"
+                return 0
+              fi
+              echo "Attempt $attempt: $url not ready yet (${body:-no response})"
+              sleep 15
+            done
+            echo "::error::$url never became healthy"
+            return 1
+          }
+          check "${{ vars.CATALOG_URL }}"
+          check "${{ vars.SALES_URL }}"
+
+      - name: Publish the UI with the Azure URLs
+        run: |
+          cat > ui/js/config.js <<CONFIG
+          window.APP_CONFIG = {
+              SALES_URL: "${{ vars.SALES_URL }}",
+              CATALOG_URL: "${{ vars.CATALOG_URL }}",
+          };
+          CONFIG
+          az storage blob upload-batch \
+            --account-name "${{ vars.UI_STORAGE }}" \
+            --auth-mode login \
+            --destination '$web' \
+            --source ui \
+            --overwrite \
+            --content-cache-control "no-cache" \
+            --output none
+          echo "UI published at https://${{ vars.UI_STORAGE }}.z1.web.core.windows.net"
