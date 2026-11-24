@@ -98,7 +98,7 @@ Consequences: If we turn on both services, plus the static UI. We get the app wo
 Did ADR-2 Hold? For the data, yes. Every table moved to exactly one service and the business functions (get_available_products, authenticate_vendor, get_clients_by_vendor) barely changed. For the code, no. The sales domain was reading and writing the catalog's table, and that had to become HTTP endpoints (reserve and release).
 
 
-## [6]. Data ownership and schema changes after the split: one database per service with versioned migrations
+## [7]. Data ownership and schema changes after the split: one database per service with versioned migrations
 Date: 11/24/2026
 Status: Decided
 Context: Before changing the archicteture we had the monoltih, where every table lived in one SQLite file. We didn't had any service divison in the database, so orderDetails had a FOREIGN KEY to products and the checkout subtracted stock and saved the order inside one transaction. After changing it to microservices, products table is inside the catalog, and orders is inside sales. In Azure each of the services has its own Azure SQL database. 
