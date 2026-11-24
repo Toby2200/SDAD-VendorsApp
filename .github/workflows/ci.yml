@@ -75,7 +75,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install validators
-        run: pip install openapi-spec-validator==0.7.1
+        run: pip install openapi-spec-validator==0.7.1 check-jsonschema==0.29.4
+      - name: Validate system.yaml against system.schema.json
+        run: check-jsonschema --schemafile system.schema.json system.yaml
       - name: Validate each openapi.yaml against the OpenAPI specification
         run: |
           python -m openapi_spec_validator services/catalog/openapi.yaml
