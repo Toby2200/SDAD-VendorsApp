@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=./system.schema.json
+student: abefeler.ieu2024
+prefix: abefeler-ieu2024
+public_url: https://abefelerieu2024ui.z1.web.core.windows.net
+
+ui:
+  path: ui
+  storage_account: abefelerieu2024ui
+  calls: [sales, catalog]
+
+azure:
+  resource_group: rg-abefeler-ieu2024
+  container_apps_environment: abefeler-ieu2024-env
+  sql_server: abefeler-ieu2024-sql
+  registry: ghcr.io/toby2200
+
+services:
+  catalog:
+    description: Products, their prices and their stock. Reserves and releases stock for the checkout.
+    path: services/catalog
+    openapi: services/catalog/openapi.yaml
+    port_default: 8001
+    health: /health
+    migrations: services/catalog/migrations
+    env:
+      PORT:
+        description: Port the service listens on (the Docker image sets 8000).
+        default: 8001
+      DATABASE_URL:
+        description: Connection URL of the catalog database, mssql://user:password@host:port/database.
+        secret: true
+      TOKEN_SECRET:
+        description: Key shared with sales to verify the signed login tokens.
+        secret: true
+      TOKEN_MAX_AGE_S:
+        description: Seconds a token is valid after login.
+        default: 28800
+      ALLOWED_ORIGIN:
+        description: The only browser origin allowed by CORS (the UI's URL).
+        default: http://localhost:8080
+      APP_VERSION:
+        description: Version returned by /health; the CD pipeline sets it to the commit SHA.
+        default: dev
+      DB_CONNECT_RETRIES:
+        description: Connection attempts before giving up (the serverless database may be waking up).
+        default: 5
+      DB_RETRY_DELAY_S:
+        description: Base delay in seconds between connection attempts; it grows with each attempt.
+        default: 3
+      FLASK_DEBUG:
+        description: Set to 1 to run the Flask development server in debug mode (local only).
+        default: "0"
+    calls: []
+    azure:
+      container_app: abefeler-ieu2024-catalog
+      sql_database: abefeler-ieu2024-catalog-db
+
+  sales:
+    description: Vendors and login, their clients, and orders. Runs the checkout, which reserves stock in catalog.
+    path: services/sales
+    openapi: services/sales/openapi.yaml
+    port_default: 8002
+    health: /health
+    migrations: services/sales/migrations
+    env:
+      PORT:
+        description: Port the service listens on (the Docker image sets 8000).
+        default: 8002
+      DATABASE_URL:
+        description: Connection URL of the sales database, mssql://user:password@host:port/database.
+        secret: true
+      TOKEN_SECRET:
+        description: Key used to sign the login tokens; shared with catalog.
+        secret: true
+      TOKEN_MAX_AGE_S:
+        description: Seconds a token is valid after login.
+        default: 28800
+      CATALOG_URL:
+        description: Base URL of the catalog service.
+        default: http://127.0.0.1:8001
+      CATALOG_TIMEOUT_S:
+        description: Seconds sales waits for catalog (2 locally, 10 on Azure because of cold starts).
+        default: 2
+      ALLOWED_ORIGIN:
+        description: The only browser origin allowed by CORS (the UI's URL).
+        default: http://localhost:8080
+      APP_VERSION:
+        description: Version returned by /health; the CD pipeline sets it to the commit SHA.
+        default: dev
+      DB_CONNECT_RETRIES:
+        description: Connection attempts before giving up (the serverless database may be waking up).
+        default: 5
+      DB_RETRY_DELAY_S:
+        description: Base delay in seconds between connection attempts; it grows with each attempt.
+        default: 3
+      FLASK_DEBUG:
+        description: Set to 1 to run the Flask development server in debug mode (local only).
+        default: "0"
+    calls:
+      - service: catalog
+        url_env: CATALOG_URL
+        endpoints:
+          - POST /products/reserve
+          - POST /products/release
+        timeout_s: 10
+        on_failure: >-
+          If catalog is down or does not answer in time, POST /sales/orders returns 503 with
+          "El catálogo no está disponible en este momento" and no order or stock change is saved.
+          If there is not enough stock, catalog answers 409 and so does sales. If saving the order
+          fails after the stock was reserved, sales calls POST /products/release to give it back.
+    azure:
+      container_app: abefeler-ieu2024-sales
+      sql_database: abefeler-ieu2024-sales-db
