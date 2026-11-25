@@ -1,5 +1,6 @@
 import pytest
 
+from database.database import get_connection
 from sales import catalog_client, service
 from sales.catalog_client import CatalogUnavailable
 from tests.data import ANDRES, CARREFOUR, MARIA, MERCADONA, WALMART
@@ -61,6 +62,24 @@ def test_client_of_another_vendor_is_rejected_before_calling_catalog(fake_catalo
     assert not success
     assert fake_catalog["reserve"] == []
     assert db_rows("SELECT * FROM orders") == []
+
+
+def test_inactive_client_is_hidden_and_cannot_order(fake_catalog, db_rows):
+    """Migration 002: a deactivated client is not listed and cannot receive new orders."""
+    connection = get_connection()
+    connection.cursor().execute("UPDATE clients SET active = 0 WHERE client_id = %s", (CARREFOUR,))
+    connection.commit()
+    connection.close()
+    assert [c["name"] for c in service.get_clients_by_vendor(ANDRES)] == ["Mercadona"]
+    success, _ = service.process_cart_for_order(CART, ANDRES, CARREFOUR, "token")
+    assert not success
+    assert fake_catalog["reserve"] == []
+    assert db_rows("SELECT * FROM orders") == []
+
+
+def test_existing_clients_are_active_after_migration_002(db_rows):
+    rows = db_rows("SELECT active FROM clients")
+    assert rows and all(row["active"] for row in rows)
 
 
 def test_no_stock_in_catalog_saves_nothing(fake_catalog, db_rows):

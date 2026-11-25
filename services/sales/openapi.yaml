@@ -165,3 +165,4 @@ components:
         mail: { type: string, nullable: true }
         cedula_juridica: { type: string, nullable: true }
         vendor_id: { type: integer }
+        active: { type: boolean, description: Added by migration 002. Only active clients are listed. }

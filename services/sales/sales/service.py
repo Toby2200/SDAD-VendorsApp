@@ -11,6 +11,7 @@ def get_clients_by_vendor(vendor_id, search=""):
             SELECT TOP 25 *
             FROM clients
             WHERE vendor_id = %s
+            AND active = 1
             AND name LIKE %s
             """,
             (vendor_id, f"%{search}%")
@@ -22,6 +23,7 @@ def get_clients_by_vendor(vendor_id, search=""):
             SELECT TOP 25 *
             FROM clients
             WHERE vendor_id = %s
+            AND active = 1
             """,
             (vendor_id,)
         )
@@ -39,7 +41,7 @@ def process_cart_for_order(cart_items, vendor_id, client_id, token):
     try:
         cursor = connection.cursor()
         cursor.execute(
-            "SELECT * FROM clients WHERE client_id = %s AND vendor_id = %s",
+            "SELECT * FROM clients WHERE client_id = %s AND vendor_id = %s AND active = 1",
             (client_id, vendor_id)
         )
         client = cursor.fetchone()
